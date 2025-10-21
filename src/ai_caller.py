@@ -7,7 +7,7 @@ from prompt_templates import PROMPT_TEMPLATE
 client = OpenAI(
     # 若没有配置环境变量，请用百炼API Key将下行替换为：api_key="sk-xxx",
     # api_key=os.getenv("DASHSCOPE_API_KEY"),
-    api_key="sk-6753a26de53a4a2fa0efaf7e5ddafdae",
+    api_key="**",
     base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
 )
 
