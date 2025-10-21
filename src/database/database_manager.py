@@ -8,10 +8,120 @@ from src.model.lottery_models import (
     AlgorithmPerformance, AlgorithmRecommendation,
     PersonalBetting, RewardPenaltyRecord, ABTestConfig
 )
-# from model.user_models import User
 
 class DatabaseManager:
     """数据库管理类"""
+
+    # 在 database/database_manager.py 的 DatabaseManager 类中修改 save_recommendations 方法
+
+def save_recommendations(self, period_number, algorithm_version, recommendations):
+    """
+    保存算法推荐结果到数据库，并增加完整性检查
+
+    Args:
+        period_number (str): 推荐期号
+        algorithm_version (str): 算法版本
+        recommendations (list): 推荐结果列表
+
+    Returns:
+        dict: 包含保存状态和详细信息的字典
+    """
+    result = {
+        "success": False,
+        "saved_count": 0,
+        "total_expected": len(recommendations),
+        "errors": []
+    }
+
+    try:
+        # 检查推荐数据是否完整
+        if not recommendations:
+            result["errors"].append("推荐数据为空")
+            return result
+
+        # 验证每条推荐数据的完整性
+        for i, rec in enumerate(recommendations):
+            required_fields = ['recommend_type', 'front_numbers', 'back_numbers', 'win_probability']
+            missing_fields = [field for field in required_fields if field not in rec or not rec[field]]
+            if missing_fields:
+                result["errors"].append(f"第{i+1}条推荐数据缺少必要字段: {missing_fields}")
+                continue
+
+        # 如果有严重错误，直接返回
+        if result["errors"] and not any(recommendations):
+            return result
+
+        recommend_time = datetime.now()
+        saved_count = 0
+
+        for rec in recommendations:
+            try:
+                # 构建推荐组合
+                front_nums = [int(n.strip()) for n in rec['front_numbers'].split(',')]
+                back_nums = [int(n.strip()) for n in rec['back_numbers'].split(',')]
+
+                recommendation_combinations = {
+                    "front_numbers": front_nums,
+                    "back_numbers": back_nums,
+                    "win_probability": float(rec['win_probability'])
+                }
+
+                # 构建分析依据数据
+                analysis_basis = {
+                    "strategy_logic": rec.get('strategy_logic', ''),
+                    "recommend_type": rec['recommend_type']
+                }
+
+                query = """
+                INSERT INTO algorithm_recommendation (
+                    period_number, recommend_time, algorithm_version, 
+                    recommendation_combinations, confidence_score, 
+                    risk_level, recommend_type, analysis_basis
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """
+
+                # 根据推荐类型确定风险等级
+                risk_level = "medium"
+                if "复式" in rec['recommend_type']:
+                    risk_level = "high"
+                elif "冷号" in rec['recommend_type']:
+                    risk_level = "medium"
+                else:
+                    risk_level = "low"
+
+                # 计算置信度分数
+                confidence_score = float(rec['win_probability']) * 1000
+
+                params = (
+                    period_number,
+                    recommend_time,
+                    algorithm_version,
+                    json.dumps(recommendation_combinations, ensure_ascii=False),
+                    confidence_score,
+                    risk_level,
+                    rec['recommend_type'],
+                    json.dumps(analysis_basis, ensure_ascii=False)
+                )
+
+                if self.execute_update(query, params):
+                    saved_count += 1
+                else:
+                    result["errors"].append(f"保存推荐类型 '{rec['recommend_type']}' 失败")
+
+            except Exception as e:
+                result["errors"].append(f"处理推荐类型 '{rec['recommend_type']}' 时出错: {str(e)}")
+
+        result["saved_count"] = saved_count
+        result["success"] = (saved_count == result["total_expected"])
+
+        # 如果部分保存成功，也认为是成功的，但需要记录警告
+        if saved_count > 0 and saved_count < result["total_expected"]:
+            result["errors"].append(f"部分推荐数据保存成功 ({saved_count}/{result['total_expected']})")
+
+    except Exception as e:
+        result["errors"].append(f"保存推荐结果时发生异常: {str(e)}")
+
+    return result
 
     def __init__(self, host: str, user: str, password: str, database: str, port: int = 3309):
         self.connection_config = {
@@ -63,15 +173,12 @@ class DatabaseManager:
             self.connection.rollback()
             return False
 
-    # 历史开奖数据操作
-    def get_lottery_history(self, limit: int = 100, offset: int = 0) -> List[LotteryHistory]:
-        """获取历史开奖数据"""
-        query = """
-        SELECT * FROM lottery_history 
-        ORDER BY draw_date DESC 
-        LIMIT %s OFFSET %s
+    def _convert_to_lottery_history_list(self, results):
         """
-        results = self.execute_query(query, (limit, offset))
+        将数据库查询结果转换为彩票历史记录列表
+        :param results: 数据库查询结果
+        :return: 彩票历史记录列表
+        """
         history_list = []
         for row in results:
             history = LotteryHistory(
@@ -96,6 +203,102 @@ class DatabaseManager:
             )
             history_list.append(history)
         return history_list
+
+    def get_latest_lottery_history(self, limit: int = 50) -> List[LotteryHistory]:
+        """获取最新的历史开奖数据（按日期倒序）"""
+        query = """
+        SELECT * FROM lottery_history 
+        ORDER BY draw_date DESC 
+        LIMIT %s
+        """
+        results = self.execute_query(query, (limit,))
+        return self._convert_to_lottery_history_list(results)
+
+    def get_user_bets(self, user_id: str = 'default', limit: int = 20) -> List[PersonalBetting]:
+        """获取用户历史投注记录"""
+        query = """
+        SELECT * FROM personal_betting 
+        WHERE user_id = %s
+        ORDER BY bet_time DESC 
+        LIMIT %s
+        """
+        results = self.execute_query(query, (user_id, limit))
+        betting_list = []
+        for row in results:
+            betting = PersonalBetting(
+                id=row['id'],
+                user_id=row['user_id'],
+                period_number=row['period_number'],
+                bet_time=row['bet_time'],
+                bet_type=row['bet_type'],
+                front_numbers=json.loads(row['front_numbers']) if isinstance(row['front_numbers'], str) else row['front_numbers'],
+                front_count=row['front_count'],
+                back_numbers=json.loads(row['back_numbers']) if isinstance(row['back_numbers'], str) else row['back_numbers'],
+                back_count=row['back_count'],
+                bet_amount=float(row['bet_amount']),
+                multiple=row['multiple'],
+                is_winning=bool(row['is_winning']) if row['is_winning'] is not None else False,
+                winning_level=row['winning_level'],
+                winning_amount=float(row['winning_amount']) if row['winning_amount'] else 0.0,
+                strategy_type=row['strategy_type'],
+                confidence_level=row['confidence_level'],
+                analysis_notes=row['analysis_notes']
+            )
+            betting_list.append(betting)
+        return betting_list
+
+    def insert_algorithm_recommendation(self, recommendation: AlgorithmRecommendation) -> bool:
+        """插入算法推荐记录"""
+        query = """
+        INSERT INTO algorithm_recommendation (
+            period_number, recommend_time, algorithm_version, recommendation_combinations,
+            confidence_score, risk_level, recommend_type, algorithm_parameters, model_weights,
+            analysis_basis, key_patterns
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+        params = (
+            recommendation.period_number,
+            recommendation.recommend_time,
+            recommendation.algorithm_version,
+            json.dumps(recommendation.recommendation_combinations),
+            recommendation.confidence_score,
+            recommendation.risk_level,
+            recommendation.recommend_type,
+            json.dumps(recommendation.algorithm_parameters) if recommendation.algorithm_parameters else None,
+            json.dumps(recommendation.model_weights) if recommendation.model_weights else None,
+            json.dumps(recommendation.analysis_basis) if recommendation.analysis_basis else None,
+            json.dumps(recommendation.key_patterns) if recommendation.key_patterns else None
+        )
+        return self.execute_update(query, params)
+
+    def get_next_period_number(self) -> str:
+        """获取下一期期号"""
+        query = """
+        SELECT period_number FROM lottery_history 
+        ORDER BY period_number DESC 
+        LIMIT 1
+        """
+        result = self.execute_query(query)
+        if result:
+            latest_period = result[0]['period_number']
+            # 确保期号格式正确
+            if isinstance(latest_period, str) and latest_period.isdigit():
+                next_period = int(latest_period) + 1
+                return str(next_period)
+            elif isinstance(latest_period, int):
+                return str(latest_period + 1)
+        return ""
+
+    # 历史开奖数据操作
+    def get_lottery_history(self, limit: int = 100, offset: int = 0) -> List[LotteryHistory]:
+        """获取历史开奖数据"""
+        query = """
+        SELECT * FROM lottery_history 
+        ORDER BY draw_date DESC 
+        LIMIT %s OFFSET %s
+        """
+        results = self.execute_query(query, (limit, offset))
+        return self._convert_to_lottery_history_list(results)
 
     def insert_lottery_history(self, history: LotteryHistory) -> bool:
         """插入历史开奖数据"""

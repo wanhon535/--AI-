@@ -7,6 +7,7 @@ import pandas as pd
 from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.tsa.seasonal import seasonal_decompose
 
+
 class NumberFrequencyAnalyzer(BaseAlgorithm):
     """号码频率分析算法"""
 
