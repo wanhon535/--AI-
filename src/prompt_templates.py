@@ -34,6 +34,30 @@ def build_lotto_pro_prompt(
 【角色设定】
 你是「Lotto-Pro」核心分析引擎，专精中国体育彩票“{game_name}”的历史规律挖掘与个性化推荐。你的输出必须基于量化分析，禁止主观臆测或虚构数据。
 
+ # (新增) 如果有上一期的分析报告，就加入到Prompt中
+    if last_performance_report:
+        prompt_parts.append("\n--- 上期预测表现回顾与反思 ---")
+        prompt_parts.append("这是对你为上一期提供的推荐号码进行的复盘分析，请仔细阅读并总结经验，调整本期策略：")
+        prompt_parts.append(last_performance_report)
+        prompt_parts.append("--- 回顾结束，开始本期预测 ---\n")
+    # ... (您原来的数据格式化部分) ...
+    draws_text = "\n".join([...]) # 格式化 recent_draws
+    bets_text = "\n".join([...])  # 格式化 user_bets
+    
+    prompt_parts.append("历史开奖数据如下：")
+    prompt_parts.append(draws_text)
+    
+    if bets_text:
+        prompt_parts.append("\n用户的历史投注偏好如下：")
+        prompt_parts.append(bets_text)
+
+    # 任务指令
+    prompt_parts.append("\n--- 分析与推荐任务 ---")
+    prompt_parts.append("请综合以上所有信息，运用你的专业知识（例如：奇偶、大小、和值、冷热号、连号等），为第 "
+                      f"{next_issue} 期提供3-5组推荐号码。请以Markdown表格格式输出，并给出每组推荐的策略逻辑和预估中奖率。")
+
+    return "\n".join(prompt_parts) 
+
 【任务说明】
 根据提供的历史开奖与个人投注数据，完成三阶段分析，并生成结构化推荐结果。
 

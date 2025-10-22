@@ -1,7 +1,7 @@
 # ai_caller.py
 from openai import OpenAI
-from prompt_templates import build_lotto_pro_prompt
-from database.database_manager import DatabaseManager
+from src.prompt_templates import build_lotto_pro_prompt
+from src.database.database_manager import DatabaseManager
 from typing import List, Dict
 
 
@@ -12,9 +12,9 @@ from typing import List, Dict
 db_manager = DatabaseManager(
     host='localhost',
     user='root',
-    password='123456789',
+    password='root',
     database='lottery_analysis_system',
-    port=3309
+    port=3307
 )
 
 # 建立数据库连接

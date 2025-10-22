@@ -10,9 +10,9 @@ def predict_next_lottery():
     # 数据库连接配置
     db_config = {
         'host': 'localhost',
-        'port': 3309,
+        'port': 3307,
         'user': 'root',
-        'password': '123456789',
+        'password': 'root',
         'database': 'lottery_analysis_system',
         'charset': 'utf8mb4'
     }

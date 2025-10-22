@@ -1,5 +1,5 @@
 # algorithms/statistical_algorithms.py
-from algorithms.base_algorithm import BaseAlgorithm
+from src.algorithms.base_algorithm import BaseAlgorithm
 from typing import List, Dict, Any
 from src.model.lottery_models import LotteryHistory
 from collections import Counter

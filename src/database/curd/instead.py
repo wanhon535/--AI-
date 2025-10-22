@@ -35,9 +35,9 @@ def insert_lottery_record(period_number, draw_date_str, front_numbers, back_numb
     # 数据库连接配置
     db_config = {
         'host': 'localhost',
-        'port': 3309,
+        'port': 3307,
         'user': 'root',
-        'password': '123456789',
+        'password': 'root',
         'database': 'lottery_analysis_system',
         'charset': 'utf8mb4'
     }
@@ -177,7 +177,8 @@ if __name__ == "__main__":
     sample_records = [
         ("2025068", "2025-06-09", [3, 7, 14, 18, 29], [2, 8]),
         ("2025069", "2025-06-11", [1, 8, 15, 23, 30], [3, 9]),
-        ("2025070", "2025-06-14", [5, 11, 19, 25, 33], [4, 10])
+        ("2025070", "2025-06-13", [2, 5, 10, 17, 20], [4, 10]),
+
     ]
 
     batch_insert_lottery_records(sample_records)

@@ -193,6 +193,7 @@ class DatabaseManager:
             cursor = self.connection.cursor()
             cursor.execute(query, params or ())
             self.connection.commit()
+            print(f"✅ SQL 执行成功: {query}")
             cursor.close()
             return True
         except Exception as e:
