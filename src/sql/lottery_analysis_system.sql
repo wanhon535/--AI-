@@ -11,7 +11,7 @@
  Target Server Version : 80012 (8.0.12)
  File Encoding         : 65001
 
- Date: 20/10/2025 10:44:04
+ Date: 22/10/2025 11:47:17
 */
 
 SET NAMES utf8mb4;
@@ -41,13 +41,8 @@ CREATE TABLE `ab_test_configs`  (
   `created_by` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '创建人',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`) USING BTREE,
-  UNIQUE INDEX `test_name`(`test_name`) USING BTREE,
-  INDEX `idx_test_status`(`test_status`) USING BTREE,
-  INDEX `idx_start_date`(`start_date`) USING BTREE,
-  INDEX `algorithm_a`(`algorithm_a`) USING BTREE,
-  INDEX `algorithm_b`(`algorithm_b`) USING BTREE
-) ENGINE = MyISAM AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'A/B测试配置表' ROW_FORMAT = Dynamic;
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'A/B测试配置表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of ab_test_configs
@@ -73,12 +68,8 @@ CREATE TABLE `algorithm_configs`  (
   `created_by` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '创建人',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`) USING BTREE,
-  UNIQUE INDEX `algorithm_name`(`algorithm_name`) USING BTREE,
-  INDEX `idx_algorithm_type`(`algorithm_type`) USING BTREE,
-  INDEX `idx_is_active`(`is_active`) USING BTREE,
-  INDEX `idx_version`(`version`) USING BTREE
-) ENGINE = MyISAM AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '算法配置表' ROW_FORMAT = Dynamic;
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '算法配置表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of algorithm_configs
@@ -105,10 +96,8 @@ CREATE TABLE `algorithm_performance`  (
   `performance_trend` enum('improving','stable','declining') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT 'stable' COMMENT '性能趋势',
   `last_updated` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`) USING BTREE,
-  UNIQUE INDEX `algorithm_version`(`algorithm_version`) USING BTREE,
-  INDEX `idx_algorithm_version`(`algorithm_version`) USING BTREE,
-  INDEX `idx_performance`(`avg_front_hit_rate`, `stability_score`) USING BTREE
-) ENGINE = MyISAM AUTO_INCREMENT = 4 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '算法性能统计表' ROW_FORMAT = Dynamic;
+  UNIQUE INDEX `algorithm_version`(`algorithm_version` ASC) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 4 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '算法性能统计表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of algorithm_performance
@@ -126,21 +115,17 @@ CREATE TABLE `algorithm_recommendation`  (
   `period_number` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '推荐期号',
   `recommend_time` datetime NOT NULL COMMENT '推荐时间',
   `algorithm_version` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '算法版本',
-  `recommendation_combinations` json NOT NULL COMMENT '推荐组合数组',
   `algorithm_parameters` json NULL COMMENT '算法参数配置',
   `model_weights` json NULL COMMENT '模型权重配置',
   `confidence_score` decimal(5, 4) NOT NULL COMMENT '总体置信度',
-  `risk_level` enum('low','medium','high') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '风险等级',
+  `risk_level` enum('low','medium','high') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '总体风险等级',
   `analysis_basis` json NULL COMMENT '分析依据数据',
   `key_patterns` json NULL COMMENT '关键模式识别',
-  `recommend_type` enum('primary','secondary','hedge') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '推荐类型：主推、次推、对冲',
+  `models` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '推荐模型名称 (根据原始表增加)',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`) USING BTREE,
-  INDEX `idx_period_algorithm`(`period_number`, `algorithm_version`) USING BTREE,
-  INDEX `idx_confidence`(`confidence_score`) USING BTREE,
-  INDEX `idx_risk_level`(`risk_level`) USING BTREE,
-  INDEX `idx_recommend_time`(`recommend_time`) USING BTREE
-) ENGINE = MyISAM AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '算法推荐记录表' ROW_FORMAT = Dynamic;
+  INDEX `idx_period_algorithm`(`period_number` ASC, `algorithm_version` ASC) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '算法推荐批次元数据表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of algorithm_recommendation
@@ -165,12 +150,8 @@ CREATE TABLE `data_update_logs`  (
   `execution_duration` int(11) NULL DEFAULT NULL COMMENT '执行时长(秒)',
   `initiated_by` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '发起人',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`) USING BTREE,
-  INDEX `idx_update_type`(`update_type`) USING BTREE,
-  INDEX `idx_update_status`(`update_status`) USING BTREE,
-  INDEX `idx_data_source`(`data_source`) USING BTREE,
-  INDEX `idx_created_at`(`created_at`) USING BTREE
-) ENGINE = MyISAM AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '数据更新日志表' ROW_FORMAT = Dynamic;
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '数据更新日志表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of data_update_logs
@@ -199,10 +180,8 @@ CREATE TABLE `financial_reports`  (
   `generated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '生成时间',
   `generated_by` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '生成人',
   PRIMARY KEY (`id`) USING BTREE,
-  UNIQUE INDEX `uk_period_type`(`report_period`, `report_type`) USING BTREE,
-  INDEX `idx_report_period`(`report_period`) USING BTREE,
-  INDEX `idx_report_type`(`report_type`) USING BTREE
-) ENGINE = MyISAM AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '财务报表' ROW_FORMAT = Dynamic;
+  UNIQUE INDEX `uk_period_type`(`report_period` ASC, `report_type` ASC) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '财务报表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of financial_reports
@@ -238,18 +217,13 @@ CREATE TABLE `lottery_history`  (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`) USING BTREE,
-  UNIQUE INDEX `period_number`(`period_number`) USING BTREE,
-  INDEX `idx_period`(`period_number`) USING BTREE,
-  INDEX `idx_draw_date`(`draw_date`) USING BTREE,
-  INDEX `idx_sum_value`(`sum_value`) USING BTREE,
-  INDEX `idx_odd_even`(`odd_even_ratio`) USING BTREE,
-  INDEX `idx_size_ratio`(`size_ratio`) USING BTREE,
-  INDEX `idx_composite`(`draw_date`, `sum_value`, `odd_even_ratio`) USING BTREE
-) ENGINE = MyISAM AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '历史开奖数据表' ROW_FORMAT = Dynamic;
+  UNIQUE INDEX `period_number`(`period_number` ASC) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 6 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '历史开奖数据表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of lottery_history
 -- ----------------------------
+INSERT INTO `lottery_history` VALUES (1, '2025067', '2025-06-07', '2025-10-22 10:57:52', 6, 10, 12, 21, 22, 1, 6, 78, 16, 0, '1:4', '2:3', NULL, '[[21, 22]]', 1, NULL, 'official', 100, '2025-10-22 10:57:51', '2025-10-22 10:57:51');
 
 -- ----------------------------
 -- Table structure for model_training_logs
@@ -275,11 +249,8 @@ CREATE TABLE `model_training_logs`  (
   `started_at` timestamp NOT NULL COMMENT '开始时间',
   `completed_at` timestamp NULL DEFAULT NULL COMMENT '完成时间',
   `training_duration` int(11) NULL DEFAULT NULL COMMENT '训练时长(秒)',
-  PRIMARY KEY (`id`) USING BTREE,
-  INDEX `idx_algorithm_version`(`algorithm_version`) USING BTREE,
-  INDEX `idx_training_date`(`training_date`) USING BTREE,
-  INDEX `idx_training_status`(`training_status`) USING BTREE
-) ENGINE = MyISAM AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '预测模型训练记录表' ROW_FORMAT = Dynamic;
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '预测模型训练记录表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of model_training_logs
@@ -301,12 +272,8 @@ CREATE TABLE `notifications`  (
   `is_archived` tinyint(1) NULL DEFAULT 0 COMMENT '是否归档',
   `expires_at` timestamp NULL DEFAULT NULL COMMENT '过期时间',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`) USING BTREE,
-  INDEX `idx_user_id`(`user_id`) USING BTREE,
-  INDEX `idx_notification_type`(`notification_type`) USING BTREE,
-  INDEX `idx_is_read`(`is_read`) USING BTREE,
-  INDEX `idx_created_at`(`created_at`) USING BTREE
-) ENGINE = MyISAM AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '系统通知消息表' ROW_FORMAT = Dynamic;
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '系统通知消息表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of notifications
@@ -333,62 +300,16 @@ CREATE TABLE `number_statistics`  (
   `strong_precursors` json NULL COMMENT '强前导号码',
   `position_preference` json NULL COMMENT '位置偏好统计',
   `last_updated` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`number`, `number_type`) USING BTREE,
-  INDEX `idx_heat_status`(`heat_status`) USING BTREE,
-  INDEX `idx_omission`(`current_omission`) USING BTREE,
-  INDEX `idx_appearance_rate`(`appearance_rate`) USING BTREE
-) ENGINE = MyISAM AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '号码统计分析表' ROW_FORMAT = Dynamic;
+  PRIMARY KEY (`number`, `number_type`) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '号码统计分析表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of number_statistics
 -- ----------------------------
 INSERT INTO `number_statistics` VALUES (1, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (2, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (3, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (4, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (5, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (6, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (7, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (8, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (9, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (10, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (11, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (12, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (13, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (14, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (15, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (16, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (17, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (18, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (19, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (20, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (21, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (22, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (23, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (24, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (25, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (26, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (27, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (28, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (29, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (30, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (31, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (32, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (33, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (34, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (35, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
 INSERT INTO `number_statistics` VALUES (1, 'back', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (2, 'back', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (3, 'back', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (4, 'back', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (5, 'back', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (6, 'back', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (7, 'back', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (8, 'back', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (9, 'back', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (10, 'back', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
-INSERT INTO `number_statistics` VALUES (11, 'back', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
 INSERT INTO `number_statistics` VALUES (12, 'back', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
+INSERT INTO `number_statistics` VALUES (35, 'front', 0, 0.0000, 0, 0, 0, 0, 0, 0.00, 'warm', 0.00, NULL, NULL, NULL, '2025-10-20 10:37:19');
 
 -- ----------------------------
 -- Table structure for pattern_recognition
@@ -412,12 +333,8 @@ CREATE TABLE `pattern_recognition`  (
   `discovered_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `last_verified` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`) USING BTREE,
-  UNIQUE INDEX `pattern_signature`(`pattern_signature`) USING BTREE,
-  INDEX `idx_pattern_type`(`pattern_type`) USING BTREE,
-  INDEX `idx_success_rate`(`success_rate`) USING BTREE,
-  INDEX `idx_confidence`(`confidence_level`) USING BTREE,
-  INDEX `idx_active`(`is_active`, `last_occurrence_date`) USING BTREE
-) ENGINE = MyISAM AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '模式识别记录表' ROW_FORMAT = Dynamic;
+  UNIQUE INDEX `pattern_signature`(`pattern_signature` ASC) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '模式识别记录表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of pattern_recognition
@@ -447,17 +364,34 @@ CREATE TABLE `personal_betting`  (
   `analysis_notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL COMMENT '投注分析笔记',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`) USING BTREE,
-  INDEX `idx_user_period`(`user_id`, `period_number`) USING BTREE,
-  INDEX `idx_bet_time`(`bet_time`) USING BTREE,
-  INDEX `idx_bet_type`(`bet_type`) USING BTREE,
-  INDEX `idx_winning`(`is_winning`, `winning_amount`) USING BTREE,
-  INDEX `idx_strategy`(`strategy_type`) USING BTREE,
-  INDEX `period_number`(`period_number`) USING BTREE
-) ENGINE = MyISAM AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '个人投注记录表' ROW_FORMAT = Dynamic;
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '个人自由投注记录表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of personal_betting
+-- ----------------------------
+
+-- ----------------------------
+-- Table structure for recommendation_details
+-- ----------------------------
+DROP TABLE IF EXISTS `recommendation_details`;
+CREATE TABLE `recommendation_details`  (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '唯一的主键',
+  `recommendation_metadata_id` bigint(20) NOT NULL COMMENT '外键，关联 algorithm_recommendation 表的 id',
+  `recommend_type` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '推荐类型 (热号主攻, 复式(7+3) 等)',
+  `strategy_logic` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '策略逻辑/说明',
+  `front_numbers` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '前区号码，逗号分隔',
+  `back_numbers` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '后区号码，逗号分隔',
+  `win_probability` decimal(10, 5) NULL DEFAULT NULL COMMENT '预计中奖概率',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_metadata_id`(`recommendation_metadata_id` ASC) USING BTREE,
+  INDEX `idx_recommend_type`(`recommend_type` ASC) USING BTREE,
+  CONSTRAINT `fk_recommendation_metadata_id` FOREIGN KEY (`recommendation_metadata_id`) REFERENCES `algorithm_recommendation` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '算法推荐的具体组合详情表' ROW_FORMAT = DYNAMIC;
+
+-- ----------------------------
+-- Records of recommendation_details
 -- ----------------------------
 
 -- ----------------------------
@@ -468,7 +402,7 @@ CREATE TABLE `reward_penalty_records`  (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `period_number` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '期号',
   `algorithm_version` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '算法版本',
-  `recommendation_id` bigint(20) NOT NULL COMMENT '对应的推荐记录ID',
+  `recommendation_id` bigint(20) NOT NULL COMMENT '对应的推荐批次ID (关联到元数据表)',
   `front_hit_count` tinyint(4) NOT NULL COMMENT '前区命中数量',
   `back_hit_count` tinyint(4) NOT NULL COMMENT '后区命中数量',
   `hit_score` decimal(5, 2) NOT NULL COMMENT '命中得分',
@@ -482,12 +416,10 @@ CREATE TABLE `reward_penalty_records`  (
   `improvement_suggestions` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL COMMENT '改进建议',
   `evaluation_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`) USING BTREE,
-  INDEX `idx_period_algorithm`(`period_number`, `algorithm_version`) USING BTREE,
-  INDEX `idx_hit_score`(`hit_score`) USING BTREE,
-  INDEX `idx_performance`(`performance_rating`) USING BTREE,
-  INDEX `idx_evaluation_time`(`evaluation_time`) USING BTREE,
-  INDEX `recommendation_id`(`recommendation_id`) USING BTREE
-) ENGINE = MyISAM AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '奖罚分明记录表' ROW_FORMAT = Dynamic;
+  INDEX `idx_period_algorithm`(`period_number` ASC, `algorithm_version` ASC) USING BTREE,
+  INDEX `recommendation_id`(`recommendation_id` ASC) USING BTREE,
+  CONSTRAINT `fk_reward_to_recommendation_metadata` FOREIGN KEY (`recommendation_id`) REFERENCES `algorithm_recommendation` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '奖罚分明记录表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of reward_penalty_records
@@ -507,15 +439,39 @@ CREATE TABLE `system_monitoring`  (
   `critical_threshold` decimal(15, 6) NULL DEFAULT NULL COMMENT '严重阈值',
   `current_status` enum('normal','warning','critical') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT 'normal' COMMENT '当前状态',
   `collected_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '采集时间',
-  PRIMARY KEY (`id`) USING BTREE,
-  INDEX `idx_metric_name`(`metric_name`) USING BTREE,
-  INDEX `idx_metric_category`(`metric_category`) USING BTREE,
-  INDEX `idx_current_status`(`current_status`) USING BTREE,
-  INDEX `idx_collected_at`(`collected_at`) USING BTREE
-) ENGINE = MyISAM AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '系统实时监控表' ROW_FORMAT = Dynamic;
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '系统实时监控表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of system_monitoring
+-- ----------------------------
+
+-- ----------------------------
+-- Table structure for user_purchase_records
+-- ----------------------------
+DROP TABLE IF EXISTS `user_purchase_records`;
+CREATE TABLE `user_purchase_records`  (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '购买记录的唯一ID',
+  `period_metadata_id` bigint(20) NOT NULL COMMENT '外键，关联 algorithm_recommendation (推荐批次元数据) 的 id',
+  `user_id` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'default' COMMENT '用户ID',
+  `purchase_type` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '实际购买类型 (例如: 7+3复式, 单式A)',
+  `front_numbers_purchased` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '实际购买的前区号码（逗号分隔）',
+  `back_numbers_purchased` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '实际购买的后区号码（逗号分隔）',
+  `cost` decimal(10, 2) NULL DEFAULT NULL COMMENT '购买花费金额',
+  `is_hit` tinyint(1) NULL DEFAULT 0 COMMENT '是否中奖',
+  `front_hit_count` tinyint(4) NULL DEFAULT 0 COMMENT '前区实际命中个数 (用于奖罚计算)',
+  `back_hit_count` tinyint(4) NULL DEFAULT 0 COMMENT '后区实际命中个数 (用于奖罚计算)',
+  `winnings_amount` decimal(12, 2) NULL DEFAULT 0.00 COMMENT '实际中奖金额',
+  `purchase_time` datetime NOT NULL COMMENT '实际购买时间',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_period_metadata_id`(`period_metadata_id` ASC) USING BTREE,
+  INDEX `idx_user_period`(`user_id` ASC, `period_metadata_id` ASC) USING BTREE,
+  CONSTRAINT `fk_purchase_to_metadata` FOREIGN KEY (`period_metadata_id`) REFERENCES `algorithm_recommendation` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '用户实际购买记录表' ROW_FORMAT = DYNAMIC;
+
+-- ----------------------------
+-- Records of user_purchase_records
 -- ----------------------------
 
 -- ----------------------------
@@ -539,12 +495,9 @@ CREATE TABLE `users`  (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`) USING BTREE,
-  UNIQUE INDEX `username`(`username`) USING BTREE,
-  UNIQUE INDEX `email`(`email`) USING BTREE,
-  INDEX `idx_username`(`username`) USING BTREE,
-  INDEX `idx_email`(`email`) USING BTREE,
-  INDEX `idx_user_role`(`user_role`) USING BTREE
-) ENGINE = MyISAM AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '用户管理表' ROW_FORMAT = Dynamic;
+  UNIQUE INDEX `username`(`username` ASC) USING BTREE,
+  UNIQUE INDEX `email`(`email` ASC) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '用户管理表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of users
@@ -560,6 +513,6 @@ CREATE ALGORITHM = UNDEFINED SQL SECURITY DEFINER VIEW `algorithm_performance_vi
 -- View structure for comprehensive_analysis_view
 -- ----------------------------
 DROP VIEW IF EXISTS `comprehensive_analysis_view`;
-CREATE ALGORITHM = UNDEFINED SQL SECURITY DEFINER VIEW `comprehensive_analysis_view` AS select `lh`.`period_number` AS `period_number`,`lh`.`draw_date` AS `draw_date`,`lh`.`front_area_1` AS `front_area_1`,`lh`.`front_area_2` AS `front_area_2`,`lh`.`front_area_3` AS `front_area_3`,`lh`.`front_area_4` AS `front_area_4`,`lh`.`front_area_5` AS `front_area_5`,`lh`.`back_area_1` AS `back_area_1`,`lh`.`back_area_2` AS `back_area_2`,`lh`.`sum_value` AS `sum_value`,`lh`.`odd_even_ratio` AS `odd_even_ratio`,`lh`.`size_ratio` AS `size_ratio`,`ar`.`algorithm_version` AS `algorithm_version`,`ar`.`confidence_score` AS `confidence_score`,`ar`.`risk_level` AS `risk_level`,`rpr`.`front_hit_count` AS `front_hit_count`,`rpr`.`back_hit_count` AS `back_hit_count`,`rpr`.`hit_score` AS `hit_score`,`rpr`.`performance_rating` AS `performance_rating` from ((`lottery_history` `lh` left join `algorithm_recommendation` `ar` on((`lh`.`period_number` = `ar`.`period_number`))) left join `reward_penalty_records` `rpr` on((`ar`.`id` = `rpr`.`recommendation_id`)));
+CREATE ALGORITHM = UNDEFINED SQL SECURITY DEFINER VIEW `comprehensive_analysis_view` AS select `lh`.`period_number` AS `period_number`,`lh`.`draw_date` AS `draw_date`,`lh`.`front_area_1` AS `front_area_1`,`lh`.`sum_value` AS `sum_value`,`lh`.`odd_even_ratio` AS `odd_even_ratio`,`lh`.`size_ratio` AS `size_ratio`,`ar`.`algorithm_version` AS `algorithm_version`,`ar`.`confidence_score` AS `confidence_score`,`ar`.`risk_level` AS `risk_level`,`rpr`.`front_hit_count` AS `front_hit_count`,`rpr`.`back_hit_count` AS `back_hit_count`,`rpr`.`hit_score` AS `hit_score`,`rpr`.`performance_rating` AS `performance_rating`,`upr`.`purchase_type` AS `purchased_type`,`upr`.`front_hit_count` AS `purchased_front_hit`,`upr`.`back_hit_count` AS `purchased_back_hit`,`upr`.`winnings_amount` AS `purchased_winnings` from (((`lottery_history` `lh` left join `algorithm_recommendation` `ar` on((`lh`.`period_number` = `ar`.`period_number`))) left join `reward_penalty_records` `rpr` on((`ar`.`id` = `rpr`.`recommendation_id`))) left join `user_purchase_records` `upr` on((`ar`.`id` = `upr`.`period_metadata_id`)));
 
 SET FOREIGN_KEY_CHECKS = 1;

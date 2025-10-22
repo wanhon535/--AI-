@@ -5,6 +5,7 @@ from openai import OpenAI
 from prompt_templates import build_lotto_pro_prompt
 from database.database_manager import DatabaseManager
 import json
+# 通义千文模型
 
 # 初始化数据库管理器
 db_manager = DatabaseManager(
