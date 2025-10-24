@@ -1,4 +1,4 @@
-# file: dashboard.py
+# file: Dashboard.py
 import streamlit as st
 import pandas as pd
 import base64  # 用于处理背景图片（如果需要的话）

@@ -18,9 +18,9 @@ def analyze_recommendation_performance(period_number: str) -> Dict:
         db_manager = DatabaseManager(
             host='localhost',
             user='root',
-            password='root',
+            password='123456789',
             database='lottery_analysis_system',
-            port=3307
+            port=3309
         )
         if not db_manager.connect():
             raise Exception("数据库连接失败")
@@ -93,9 +93,9 @@ print(analysis)
 db_manager = DatabaseManager(
     host='localhost',
     user='root',
-    password='root',
+    password='123456789',
     database='lottery_analysis_system',
-    port=3307
+    port=3309
 )
 
 # 建立数据库连接
