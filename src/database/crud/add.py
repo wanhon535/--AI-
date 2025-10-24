@@ -1,5 +1,5 @@
 
-# src/database/curd/add.py
+# src/database/crud/add.py
 from mysql.connector import Error
 from typing import List, Dict, Any
 from src.model.lottery_models import LotteryHistory, AlgorithmRecommendation, RecommendationDetail

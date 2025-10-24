@@ -249,65 +249,65 @@ try:
         print("✅ 成功插入算法推荐根记录")
 
         # 获取刚插入的 record_id
-        last_insert_id = db_manager.execute_query("SELECT LAST_INSERT_ID();")[0]['LAST_INSERT_ID()']
-        print(f"📌 推荐根记录 ID: {last_insert_id}")
-
-        # 2. 批量插入推荐详情
-        details_success = db_manager.insert_recommendation_details_batch(
-            recommendation_id=last_insert_id,
-            details=recommendations_data
-        )
-        if details_success:
-            print("✅ 推荐详情已成功插入")
-        else:
-            print("❌ 推荐详情插入失败")
-
-        # 3. 模拟用户购买行为（可选）
-        purchases = [
-            {
-                "user_id": "default",
-                "purchase_type": "复式",
-                "front_numbers_purchased": "06,10,12,18,21,22,25",
-                "back_numbers_purchased": "01,06,08",
-                "cost": 42.0,
-                "is_hit": False,
-                "front_hit_count": 0,
-                "back_hit_count": 0,
-                "winnings_amount": 0.0
-            },
-            {
-                "user_id": "default",
-                "purchase_type": "单式",
-                "front_numbers_purchased": "06,10,12,21,22",
-                "back_numbers_purchased": "01,06",
-                "cost": 2.0,
-                "is_hit": False,
-                "front_hit_count": 0,
-                "back_hit_count": 0,
-                "winnings_amount": 0.0
-            },
-            {
-                "user_id": "default",
-                "purchase_type": "单式",
-                "front_numbers_purchased": "03,07,14,18,29",
-                "back_numbers_purchased": "02,08",
-                "cost": 2.0,
-                "is_hit": False,
-                "front_hit_count": 0,
-                "back_hit_count": 0,
-                "winnings_amount": 0.0
-            }
-        ]
-
-        purchase_success = db_manager.insert_user_purchase_records_batch(
-            period_metadata_id=last_insert_id,
-            purchases=purchases
+        last_insert_id = db_manager.insert_algorithm_recommendation_root(
+            period_number=next_issue,
+            model_name="qwen3-max",
+            confidence_score=0.85,
+            risk_level="medium"
         )
 
-        if purchase_success:
-            print("✅ 用户购买记录已成功插入")
+        if not last_insert_id:
+            print("❌ 算法推荐根记录插入失败")
         else:
-            print("❌ 用户购买记录插入失败")
+            print("✅ 成功插入算法推荐根记录")
+            print(f"📌 推荐根记录 ID: {last_insert_id}")
+
+            # 2. 批量插入推荐详情
+            details_success = db_manager.insert_recommendation_details_batch(
+                recommendation_id=last_insert_id,
+                details=recommendations_data
+            )
+            if details_success:
+                print("✅ 推荐详情已成功插入")
+            else:
+                print("❌ 推荐详情插入失败")
+
+            # 3. 准备购买数据
+            purchases = [
+                {
+                    "user_id": "default",
+                    "purchase_type": "复式",
+                    "front_numbers_purchased": "06,10,12,18,21,22,25",
+                    "back_numbers_purchased": "01,06,08",
+                    "cost": 42.0,
+                    "is_hit": False,
+                    "front_hit_count": 0,
+                    "back_hit_count": 0,
+                    "winnings_amount": 0.0
+                },
+                {
+                    "user_id": "default",
+                    "purchase_type": "单式",
+                    "front_numbers_purchased": "06,10,12,21,22",
+                    "back_numbers_purchased": "01,06",
+                    "cost": 2.0,
+                    "is_hit": False,
+                    "front_hit_count": 0,
+                    "back_hit_count": 0,
+                    "winnings_amount": 0.0
+                }
+            ]
+
+            # 4. 插入用户购买记录
+            purchase_success = db_manager.insert_user_purchase_records_batch(
+                period_metadata_id=last_insert_id,
+                purchases=purchases
+            )
+
+            if purchase_success:
+                print("✅ 用户购买记录已成功插入")
+            else:
+                print("❌ 用户购买记录插入失败")
 
 except Exception as e:
     print(f"❌ 程序执行出错: {e}")
