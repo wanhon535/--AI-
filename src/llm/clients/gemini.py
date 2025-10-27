@@ -2,7 +2,7 @@
 # 为Google Gemini模型提供具体实现
 
 import google.generativeai as genai
-from src.llm.base import AbstractLLMClient
+from src.llm.bash import AbstractLLMClient
 
 
 class GeminiClient(AbstractLLMClient):
