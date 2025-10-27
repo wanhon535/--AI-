@@ -16,18 +16,33 @@ E:/pyhton/AI/AICp/
 ├── app.py                         # 应用主程序入口文件
 ├── main.py                        # 主程序文件
 ├── pages/                         # Streamlit页面文件目录
+│   ├── Analysis.py                # 分析页面
+│   ├── Betting.py                 # 投注页面
 │   ├── Dashboard.py               # 主仪表板页面
+│   ├── History.py                 # 历史数据页面
+│   ├── Home.py                    # 主页
 │   ├── Login.py                   # 登录页面
+│   ├── Recommendations.py         # 推荐页面
 │   ├── Register.py                # 注册页面
 │   └── __pycache__/
 │       └── (1 items)
 ├── requirements.txt               # 项目依赖包列表
 └── src/                           # 源代码根目录
+    ├── __init__.py                # 包初始化文件
     ├── __pycache__/               # Python编译缓存目录
     │   └── (1 items)
-    ├── ai_caller.py               # AI调用接口文件
     ├── algorithms/                # 算法模块目录
     │   ├── __init__.py            # 算法包初始化文件
+    │   ├── advanced_algorithms/   # 高级算法目录
+    │   │   ├── adaptive_meta_ensemble.py      # 自适应元集成算法
+    │   │   ├── backtesting_engine.py          # 回测引擎
+    │   │   ├── bayesian_number_predictor.py   # 贝叶斯号码预测器
+    │   │   ├── feature_engineer.py            # 特征工程
+    │   │   ├── hit_rate_optimizer.py          # 命中率优化器
+    │   │   ├── lottery_rl_agent.py            # 彩票强化学习代理
+    │   │   ├── markov_transition_model.py     # 马尔可夫转移模型
+    │   │   ├── neural_lottery_predictor.py    # 神经网络彩票预测器
+    │   │   └── number_graph_analyzer.py       # 号码图分析器
     │   ├── base_algorithm.py      # 算法基类
     │   ├── ha.py                  # 临时文件
     │   ├── ml_algorithms.py       # 机器学习算法
@@ -37,6 +52,7 @@ E:/pyhton/AI/AICp/
     ├── analysis/                  # 分析模块目录
     │   ├── __pycache__/           # 缓存目录
     │   │   └── (1 items)
+    │   ├── manager.py             # 分析管理器
     │   └── performance_analyzer.py # 性能分析器
     ├── auth/                      # 认证模块目录
     │   ├── __pycache__/           # 缓存目录
@@ -53,17 +69,37 @@ E:/pyhton/AI/AICp/
     ├── database/                  # 数据库模块目录
     │   ├── __init__.py            # 数据库包初始化文件
     │   ├── __pycache__/           # 缓存目录
-    │   │   └── (2 items)
-    │   ├── curd/                  # CRUD操作目录
+    │   │   └── (4 items)
+    │   ├── AllDao.py              # 所有DAO集合
+    │   ├── connection_manager.py  # 数据库连接管理器
+    │   ├── crud/                  # CRUD操作目录
+    │   │   ├── AlgorithmConfigDAO.py          # 算法配置DAO
+    │   │   ├── AlgorithmPerformanceDAO.py     # 算法性能DAO
+    │   │   ├── NumberStatisticsDAO.py         # 号码统计DAO
     │   │   ├── add.py             # 添加数据操作
+    │   │   ├── algorithm_recommendation_dao.py # 算法推荐DAO
     │   │   ├── instead.py         # 替换数据操作
-    │   │   └── prediction.py      # 预测数据操作
+    │   │   ├── lottery_history_dao.py         # 彩票历史DAO
+    │   │   ├── personal_betting_dao.py        # 个人投注DAO
+    │   │   ├── prediction.py       # 预测数据操作
+    │   │   ├── recommendation_details_dao.py  # 推荐详情DAO
+    │   │   └── user_purchase_dao.py           # 用户购买DAO
     │   └── database_manager.py    # 数据库管理器
     ├── engine/                    # 引擎模块目录
     │   ├── __init__.py            # 引擎包初始化文件
     │   ├── evaluation_system.py   # 评估系统
     │   └── recommendation_engine.py # 推荐引擎
     ├── img.png                    # 图片资源文件
+    ├── llm/                       # 大语言模型相关目录
+    │   ├── __init__.py            # 包初始化文件
+    │   ├── config.py              # LLM配置文件
+    │   ├── bash.py                # Bash命令执行相关
+    │   └── clients/               # 各种LLM客户端实现
+    │       ├── __init__.py        # 客户端初始化文件
+    │       ├── ai_caller.py       # AI调用接口文件
+    │       ├── ai_callerv_1.0.py  # AI调用接口v1.0版本
+    │       ├── gemini.py          # Gemini客户端
+    │       └── openai_compatible.py # OpenAI兼容客户端
     ├── model/                     # 模型模块目录
     │   ├── __init__.py            # 模型包初始化文件
     │   ├── __pycache__/           # 缓存目录

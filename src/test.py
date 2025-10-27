@@ -1,163 +1,138 @@
-# file: src/ai_caller.py
-# 优化版本
-import re
+# test.py (位于项目根目录)
+
 import json
-from typing import List, Dict
-from openai import OpenAI
+import random
+from typing import List, Dict, Any
 
-# 1. 导入新的 V9 Prompt 构建函数
-from src.prompt_templates import build_lotto_pro_prompt_v9
-# 2. 导入您的数据库管理器
-from src.database.database_manager import DatabaseManager
-# 3. 导入分析模块的函数
-from src.analysis.performance_analyzer import analyze_recommendation_performance, generate_performance_summary
+# --------------------------------------------------------------------------
+# 1. 导入您需要测试的函数和它依赖的类
+#    我们使用相对导入，因为 test.py 在根目录，可以访问 src 包
+# --------------------------------------------------------------------------
+from src.prompt_templates import build_lotto_pro_prompt_v14_omega
+from src.model.lottery_models import LotteryHistory
 
 
-def parse_ai_recommendations(content: str) -> List[Dict]:
+# --------------------------------------------------------------------------
+# 2. 创建一个辅助函数来生成逼真的模拟数据
+#    这是测试中最关键的部分，确保输入数据的格式和类型正确
+# --------------------------------------------------------------------------
+def generate_mock_data() -> Dict[str, Any]:
+    """生成一组用于测试 V14.5 Prompt 的完整模拟数据。"""
+
+    print(" MOCK: Generating mock data for the test...")
+
+    # a. 模拟最近的开奖历史 (List[LotteryHistory])
+    recent_draws = [
+        LotteryHistory(
+            period_number='2025121',
+            front_area=[2, 8, 15, 22, 31],
+            back_area=[3, 10]
+        ),
+        LotteryHistory(
+            period_number='2025120',
+            front_area=[5, 11, 19, 21, 34],
+            back_area=[6, 7]
+        ),
+        LotteryHistory(
+            period_number='2025119',
+            front_area=[1, 9, 10, 25, 33],
+            back_area=[1, 11]
+        )
+    ]
+
+    # b. 模拟各个算法模型的输出 (Dict[str, Any])
+    #    注意：这里的内部结构可以简化，因为Prompt本身不解析深层内容，只关心键的存在。
+    model_outputs = {
+        'bayesian': {'top_picks': [2, 11, 22, 31], 'confidence': 0.7},
+        'markov': {'transitions': {'5': 19, '11': 2}, 'confidence': 0.6},
+        'graph': {'communities': [[1, 9, 10], [25, 33]], 'confidence': 0.65},
+        'neural': {'heatmap': {'8': 0.08, '23': 0.07}, 'confidence': 0.8},
+        'hit_optimizer': {'optimized_set': [8, 15, 21, 23, 34], 'expected_hits': 1.2},
+        'ensemble': {'final_recommendation': [2, 8, 21, 22, 33], 'confidence': 0.85},
+        'backtest': {'avg_hits': 1.1, 'win_rate': 0.2}
+    }
+
+    # c. 模拟算法的历史表现日志 (Dict[str, float])
+    #    这些值将用于计算动态权重
+    performance_log = {
+        'bayesian': 0.78,
+        'markov': 0.45,
+        'graph': 0.65,
+        'neural': 0.85,
+        'hit_optimizer': 0.72,
+        'ensemble': 0.91
+    }
+
+    # d. 模拟用户的约束条件 (Dict[str, Any])
+    user_constraints = {
+        'max_bets': 4,
+        'budget': 200.0,
+        'risk_level': '激进'  # 这个字段在V14.5中被 risk_preference 参数替代
+    }
+
+    # e. 模拟上一期的复盘报告 (str)
+    last_performance_report = """
+    报告期号: 2025121
+    策略: "核心热号追击策略"
+    表现: 命中 前区1+后区1。
+    结论: 策略过于集中于追逐热号（22, 31），但当期冷号（2, 8, 15）反弹，导致命中率不佳。
+    经验教训: 单一策略风险敞口过大，需要引入对冲机制来平衡冷热号分布。
     """
-    解析AI返回的推荐内容（支持Markdown表格和加粗格式）。
-    这是一个独立的工具函数，放在顶层方便调用。
-    """
-    recommendations = []
-    if not content:
-        return recommendations
 
-    lines = content.strip().split('\n')
-    header_index = -1
-    for i, line in enumerate(lines):
-        if "推荐类型" in line and "策略逻辑" in line and line.strip().startswith('|'):
-            header_index = i
-            break
+    print(" MOCK: Mock data generation complete.\n")
 
-    if header_index == -1:
-        print("⚠️  警告：未在AI响应中找到标准的推荐表格，将使用备用数据。")
-        return []
-
-    data_start_index = header_index + 1
-    if data_start_index < len(lines) and '---' in lines[data_start_index]:
-        data_start_index += 1
-
-    pattern = re.compile(r'\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|')
-
-    for i in range(data_start_index, len(lines)):
-        line = lines[i].strip()
-        if not line.startswith('|') or not line.endswith('|'):
-            break
-
-        match = pattern.match(line)
-        if not match:
-            continue
-
-        try:
-            # 提取并清理数据
-            recommend_type = re.sub(r'\*\*', '', match.group(1)).strip()
-            strategy_logic = re.sub(r'\*\*', '', match.group(2)).strip()
-            front_numbers = re.sub(r'\*\*', '', match.group(3)).strip()
-            back_numbers = re.sub(r'\*\*', '', match.group(4)).strip()
-            win_prob_str = re.sub(r'[\*\s%]|\[理论EV\]', '', match.group(5)).strip()
-            win_probability = float(win_prob_str) if win_prob_str else 0.0
-
-            recommendations.append({
-                "recommend_type": recommend_type,
-                "strategy_logic": strategy_logic,
-                "front_numbers": front_numbers,
-                "back_numbers": back_numbers,
-                "win_probability": win_probability
-            })
-        except (ValueError, IndexError) as e:
-            print(f"⚠️  警告：跳过格式不正确的行: '{line}'. 错误: {e}")
-            continue
-
-    return recommendations
+    return {
+        "recent_draws": recent_draws,
+        "model_outputs": model_outputs,
+        "performance_log": performance_log,
+        "user_constraints": user_constraints,
+        "last_performance_report": last_performance_report,
+        "next_issue_hint": "2025122",
+        "budget": 200.0,
+        "risk_preference": "激进"
+    }
 
 
-def main():
-    """
-    主执行函数，串联“分析-反馈-预测-存储”的完整AI工作流。
-    """
-    db_manager = None
-    try:
-        # --- 步骤 1: 初始化数据库 ---
-        db_manager = DatabaseManager(
-            host='localhost', user='root', password='root',
-            database='lottery_analysis_system', port=3307
-        )
-        if not db_manager.connect():
-            raise ConnectionError("数据库连接失败")
-        print("✅ 数据库连接成功。")
-
-        # --- 步骤 2: 确定期号并生成反馈报告 ---
-        latest_draw = db_manager.get_latest_lottery_history(1)
-        if not latest_draw:
-            raise ValueError("数据库中没有历史开奖数据，无法启动流程。")
-
-        last_period_to_analyze = latest_draw[0].period_number
-        next_period_to_predict = str(int(last_period_to_analyze) + 1)
-        print(f"🔄 最新开奖期为 {last_period_to_analyze}，即将预测第 {next_period_to_predict} 期。")
-
-        print(f"\n--- 正在分析第 {last_period_to_analyze} 期表现以生成反馈报告 ---")
-        analysis_data = analyze_recommendation_performance(last_period_to_analyze)
-        performance_feedback_report = generate_performance_summary(analysis_data)
-        print("✅ 反馈报告已生成。")
-
-        # --- 步骤 3: 获取构建Prompt所需的数据 ---
-        recent_draws = db_manager.get_latest_lottery_history(50)
-        user_bets = db_manager.get_user_bets('default', 20)
-        print(f"📊 已获取最近 {len(recent_draws)} 期数据和 {len(user_bets)} 条用户投注记录。")
-
-        # --- 步骤 4: 构建 V9 版本的智能Prompt ---
-        final_prompt, _ = build_lotto_pro_prompt_v9(
-            recent_draws=recent_draws,
-            user_bets=user_bets,
-            next_issue_hint=next_period_to_predict,
-            last_performance_report=performance_feedback_report  # 关键：传入反馈报告
-        )
-        print("\n--- 正在调用AI模型，请稍候... ---")
-
-        # --- 步骤 5: 调用 AI 模型 ---
-        client = OpenAI(
-            api_key="sk-...",  # 请替换为您的真实API Key
-            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-        )
-        completion = client.chat.completions.create(
-            model="qwen-max",  # 确保模型名称正确
-            messages=[{"role": "user", "content": final_prompt}],
-            temperature=0.7  # 增加一点创造性
-        )
-        response_content = completion.choices[0].message.content
-        print("✅ AI模型响应成功！\n" + response_content)
-
-        # --- 步骤 6: 解析并存储结果 ---
-        recommendations_data = parse_ai_recommendations(response_content)
-        if not recommendations_data:  # 如果解析失败或为空
-            print("❌ 解析AI推荐失败或无数据，流程终止。")
-            return
-
-        print(f"\n✅ 成功解析 {len(recommendations_data)} 条推荐，正在存入数据库...")
-
-        root_success = db_manager.insert_algorithm_recommendation_root(
-            period_number=next_period_to_predict, model_name="qwen-max-v9",
-            confidence_score=0.9, risk_level="medium"
-        )
-        if not root_success:
-            raise RuntimeError("❌ 算法推荐根记录插入失败")
-
-        last_insert_id = db_manager.execute_query("SELECT LAST_INSERT_ID();")[0]['LAST_INSERT_ID()']
-        details_success = db_manager.insert_recommendation_details_batch(
-            recommendation_id=last_insert_id, details=recommendations_data
-        )
-        if details_success:
-            print("✅ 推荐详情已成功插入数据库！")
-        else:
-            raise RuntimeError("❌ 推荐详情插入失败")
-
-    except Exception as e:
-        print(f"\n❌ 程序执行过程中发生严重错误: {e}")
-    finally:
-        if db_manager and db_manager.is_connected():
-            db_manager.disconnect()
-            print("\n⏹️ 数据库连接已关闭，流程结束。")
-
-
+# --------------------------------------------------------------------------
+# 3. 主执行逻辑
+#    在这里，我们调用函数并打印结果
+# --------------------------------------------------------------------------
 if __name__ == "__main__":
-    main()
+    print("=" * 50)
+    print("🚀  STARTING TEST FOR: build_lotto_pro_prompt_v14_omega")
+    print("=" * 50)
+
+    # 获取模拟数据
+    mock_data = generate_mock_data()
+
+    # 调用你的 V14.5 Prompt 生成函数
+    # 使用 **mock_data 将字典中的所有键值对作为参数传递给函数
+    print("📞  Calling the prompt generation function...")
+    generated_prompt, next_issue = build_lotto_pro_prompt_v14_omega(**mock_data)
+    print("✅  Prompt function executed successfully!\n")
+
+    # 打印结果以进行验证
+    print("-" * 50)
+    print("🔍  VERIFICATION OF OUTPUTS")
+    print("-" * 50)
+
+    print(f"\n[ NEXT ISSUE IDENTIFIED ]\n{next_issue}\n")
+
+    print("\n[ GENERATED PROMETHEUS-Ω PROMPT ]")
+    print("--- START OF PROMPT ---")
+    print(generated_prompt)
+    print("--- END OF PROMPT ---\n")
+
+    # 作为一个额外的健全性检查，我们可以尝试解析Prompt中包含的JSON模板
+    # 这有助于确保模板本身是有效的
+    try:
+        # 从Prompt末尾提取JSON模板字符串
+        json_template_str = generated_prompt.split("```json").split("```")[0].strip()
+        json.loads(json_template_str)
+        print("✅  Sanity Check: The JSON template within the prompt is valid.")
+    except Exception as e:
+        print(f"❌  Sanity Check FAILED: The JSON template within the prompt is invalid. Error: {e}")
+
+    print("\n=" * 50)
+    print("🏁  TEST COMPLETE")
+    print("=" * 50)

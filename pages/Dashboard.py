@@ -7,7 +7,7 @@ import time
 # 导入您的模块
 from src.database.database_manager import DatabaseManager
 from src.analysis.performance_analyzer import analyze_recommendation_performance, generate_performance_summary
-from src.ui.style_utils import add_final_elegant_css
+from src.ui.style_utils import load_global_styles
 
 # 登录页面配置：
 
@@ -17,7 +17,7 @@ from src.ui.style_utils import add_final_elegant_css
 # st.set_page_config(page_title="Lotto-Pro 智能分析系统", page_icon="🎨", layout="wide")
 
 
-from src.ui.style_utils import add_final_elegant_css
+from src.ui.style_utils import load_global_styles
 def add_final_elegant_css():
     """
     注入最终优化的CSS，实现您喜欢的“柔和晨曦”风格，

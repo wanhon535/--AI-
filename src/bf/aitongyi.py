@@ -1,4 +1,4 @@
-# ai_caller.py
+# openai_compatible.py
 from openai import OpenAI
 from src.prompt_templates import build_lotto_pro_prompt
 from src.database.database_manager import DatabaseManager
