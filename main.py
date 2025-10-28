@@ -4,6 +4,7 @@ import json
 import os
 import sys
 import traceback
+from datetime import datetime
 
 # --- 1. 项目环境设置 ---
 project_root = os.path.abspath(os.path.dirname(__file__))
@@ -28,10 +29,12 @@ from src.algorithms.dynamic_ensemble_optimizer import DynamicEnsembleOptimizer
 
 
 def main():
+
     """主函数，负责编排完整的“评估-学习-决策”闭环"""
     print("\n" + "=" * 60)
     print("🔥  启动 LOTTO-PRO 自学习预测管道 V4.3")
     print("=" * 60)
+
 
     db_manager = None  # 确保在finally块中可用
     try:
@@ -113,27 +116,62 @@ def main():
         # ======================================================================
         # 阶段四：执行 (解析并存储到数据库)
         # ======================================================================
-        print("\n[管道步骤 4/4] 解析决策并保存至数据库...")
+        print("\n[PIPELINE] STEP 4/4: Parsing and saving results to database...")
         try:
             response_data = json.loads(response_str)
             recommendations_from_llm = response_data['cognitive_cycle_outputs']['phase4_portfolio_construction'][
                 'recommendations']
-            print(f"  - ✅ 决策解析成功，共找到 {len(recommendations_from_llm)} 条推荐组合。")
+            print(f"  - ✅ Decision parsed successfully. Found {len(recommendations_from_llm)} portfolio items.")
 
-            # 在此处添加您的数据库保存逻辑，例如：
-            # root_id = db_manager.insert_algorithm_recommendation_root(...)
-            # success = db_manager.insert_recommendation_details_batch(...)
-            # if success:
-            #     print("  - ✅ 所有推荐详情已成功存入数据库。")
+            # --- vvvvvvvvvvv  恢复并强化的数据库写入逻辑 vvvvvvvvvvv ---
 
-            # 暂时用打印代替
-            print("  - [模拟] 数据库保存逻辑在此处执行。")
+            # 1. 插入推荐主记录 (algorithm_recommendation)
+            final_summary = response_data.get('final_summary', {})
+            root_id = db_manager.insert_algorithm_recommendation_root(
+                period_number=next_issue,
+                model_name=f"{MODEL_TO_USE} ({response_data.get('request_meta', {}).get('engine_version', 'Prometheus')})",
+                confidence_score=final_summary.get('confidence_level', 0.8),
+                risk_level=final_summary.get('risk_assessment', 'medium')
+            )
+
+            if not root_id:
+                print("  - ❌ CRITICAL: Failed to insert recommendation root record. Aborting save.")
+                return
+
+            print(f"  - ✅ Recommendation root record inserted. ID: {root_id}")
+
+            # 2. 准备推荐详情数据
+            details_to_insert = []
+            for rec in recommendations_from_llm:
+                front_str = ','.join(map(str, rec.get('front_numbers', [])))
+                back_str = ','.join(map(str, rec.get('back_numbers', [])))
+
+                details_to_insert.append({
+                    "recommend_type": rec.get('type', 'Unknown'),
+                    "strategy_logic": rec.get('role_in_portfolio', ''),
+                    "front_numbers": front_str,
+                    "back_numbers": back_str,
+                    "win_probability": rec.get('confidence_score', 0.0)
+                })
+
+            # 3. 批量插入推荐详情 (recommendation_details)
+            success = db_manager.insert_recommendation_details_batch(
+                recommendation_id=root_id,
+                details=details_to_insert
+            )
+
+            if success:
+                print("  - ✅ All recommendation details have been successfully saved to the database.")
+            else:
+                print("  - ❌ FAILED: Could not insert recommendation details into the database.")
+
+            # --- ^^^^^^^^^^^ 数据库写入逻辑结束 ^^^^^^^^^^^ ---
 
         except (json.JSONDecodeError, KeyError) as e:
-            print(f"  - ❌ 严重错误: 解析或处理LLM决策失败。错误: {e}")
+            print(f"  - ❌ CRITICAL: Failed to parse or save LLM's decision. Error: {e}")
             with open("error_response.log", "w", encoding="utf-8") as f:
                 f.write(response_str)
-            print("  - 原始响应已保存至 error_response.log 以供调试。")
+            print("  - Raw response saved to error_response.log for debugging.")
 
     except Exception as e:
         print(f"\n❌ 管道执行期间发生意外错误: {e}")
