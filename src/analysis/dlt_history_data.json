@@ -1,0 +1,1212 @@
+[
+    {
+        "openCode": "02,03,08,13,21+07,12",
+        "code": "cjdlt",
+        "expect": "2025121",
+        "name": "超级大乐透",
+        "time": "2025-10-25 21:25:00",
+        "frontArea": [
+            2,
+            3,
+            8,
+            13,
+            21
+        ],
+        "backArea": [
+            7,
+            12
+        ],
+        "frontArea_Sum": 47,
+        "frontArea_OddEven": "3:2",
+        "frontArea_IsConsecutive": true,
+        "frontArea_Span": 19
+    },
+    {
+        "openCode": "11,13,22,26,35+02,08",
+        "code": "cjdlt",
+        "expect": "2025120",
+        "name": "超级大乐透",
+        "time": "2025-10-22 21:25:00",
+        "frontArea": [
+            11,
+            13,
+            22,
+            26,
+            35
+        ],
+        "backArea": [
+            2,
+            8
+        ],
+        "frontArea_Sum": 107,
+        "frontArea_OddEven": "3:2",
+        "frontArea_IsConsecutive": false,
+        "frontArea_Span": 24
+    },
+    {
+        "openCode": "08,15,27,29,31+01,07",
+        "code": "cjdlt",
+        "expect": "2025119",
+        "name": "超级大乐透",
+        "time": "2025-10-20 21:25:00",
+        "frontArea": [
+            8,
+            15,
+            27,
+            29,
+            31
+        ],
+        "backArea": [
+            1,
+            7
+        ],
+        "frontArea_Sum": 110,
+        "frontArea_OddEven": "4:1",
+        "frontArea_IsConsecutive": false,
+        "frontArea_Span": 23
+    },
+    {
+        "openCode": "02,08,09,12,21+04,05",
+        "code": "cjdlt",
+        "expect": "2025118",
+        "name": "超级大乐透",
+        "time": "2025-10-18 21:25:00",
+        "frontArea": [
+            2,
+            8,
+            9,
+            12,
+            21
+        ],
+        "backArea": [
+            4,
+            5
+        ],
+        "frontArea_Sum": 52,
+        "frontArea_OddEven": "2:3",
+        "frontArea_IsConsecutive": true,
+        "frontArea_Span": 19
+    },
+    {
+        "openCode": "05,10,18,21,29+05,07",
+        "code": "cjdlt",
+        "expect": "2025117",
+        "name": "超级大乐透",
+        "time": "2025-10-15 21:25:00",
+        "frontArea": [
+            5,
+            10,
+            18,
+            21,
+            29
+        ],
+        "backArea": [
+            5,
+            7
+        ],
+        "frontArea_Sum": 83,
+        "frontArea_OddEven": "3:2",
+        "frontArea_IsConsecutive": false,
+        "frontArea_Span": 24
+    },
+    {
+        "openCode": "02,06,16,22,29+08,12",
+        "code": "cjdlt",
+        "expect": "2025116",
+        "name": "超级大乐透",
+        "time": "2025-10-13 21:19:16",
+        "frontArea": [
+            2,
+            6,
+            16,
+            22,
+            29
+        ],
+        "backArea": [
+            8,
+            12
+        ],
+        "frontArea_Sum": 75,
+        "frontArea_OddEven": "1:4",
+        "frontArea_IsConsecutive": false,
+        "frontArea_Span": 27
+    },
+    {
+        "openCode": "03,12,14,21,35+01,05",
+        "code": "cjdlt",
+        "expect": "2025115",
+        "name": "超级大乐透",
+        "time": "2025-10-11 21:18:09",
+        "frontArea": [
+            3,
+            12,
+            14,
+            21,
+            35
+        ],
+        "backArea": [
+            1,
+            5
+        ],
+        "frontArea_Sum": 85,
+        "frontArea_OddEven": "3:2",
+        "frontArea_IsConsecutive": false,
+        "frontArea_Span": 32
+    },
+    {
+        "openCode": "03,08,09,12,16+01,05",
+        "code": "cjdlt",
+        "expect": "2025114",
+        "name": "超级大乐透",
+        "time": "2025-10-08 21:18:35",
+        "frontArea": [
+            3,
+            8,
+            9,
+            12,
+            16
+        ],
+        "backArea": [
+            1,
+            5
+        ],
+        "frontArea_Sum": 48,
+        "frontArea_OddEven": "2:3",
+        "frontArea_IsConsecutive": true,
+        "frontArea_Span": 13
+    },
+    {
+        "openCode": "01,14,18,28,35+02,03",
+        "code": "cjdlt",
+        "expect": "2025113",
+        "name": "超级大乐透",
+        "time": "2025-10-06 21:21:25",
+        "frontArea": [
+            1,
+            14,
+            18,
+            28,
+            35
+        ],
+        "backArea": [
+            2,
+            3
+        ],
+        "frontArea_Sum": 96,
+        "frontArea_OddEven": "2:3",
+        "frontArea_IsConsecutive": false,
+        "frontArea_Span": 34
+    },
+    {
+        "openCode": "03,04,21,23,24+09,12",
+        "code": "cjdlt",
+        "expect": "2025112",
+        "name": "超级大乐透",
+        "time": "2025-09-29 21:17:57",
+        "frontArea": [
+            3,
+            4,
+            21,
+            23,
+            24
+        ],
+        "backArea": [
+            9,
+            12
+        ],
+        "frontArea_Sum": 75,
+        "frontArea_OddEven": "3:2",
+        "frontArea_IsConsecutive": true,
+        "frontArea_Span": 21
+    },
+    {
+        "openCode": "02,09,14,21,26+02,12",
+        "code": "cjdlt",
+        "expect": "2025111",
+        "name": "超级大乐透",
+        "time": "2025-09-27 21:21:23",
+        "frontArea": [
+            2,
+            9,
+            14,
+            21,
+            26
+        ],
+        "backArea": [
+            2,
+            12
+        ],
+        "frontArea_Sum": 72,
+        "frontArea_OddEven": "2:3",
+        "frontArea_IsConsecutive": false,
+        "frontArea_Span": 24
+    },
+    {
+        "openCode": "01,15,22,30,31+02,08",
+        "code": "cjdlt",
+        "expect": "2025110",
+        "name": "超级大乐透",
+        "time": "2025-09-24 21:20:45",
+        "frontArea": [
+            1,
+            15,
+            22,
+            30,
+            31
+        ],
+        "backArea": [
+            2,
+            8
+        ],
+        "frontArea_Sum": 99,
+        "frontArea_OddEven": "3:2",
+        "frontArea_IsConsecutive": true,
+        "frontArea_Span": 30
+    },
+    {
+        "openCode": "04,08,10,13,26+09,10",
+        "code": "cjdlt",
+        "expect": "2025109",
+        "name": "超级大乐透",
+        "time": "2025-09-22 21:18:40",
+        "frontArea": [
+            4,
+            8,
+            10,
+            13,
+            26
+        ],
+        "backArea": [
+            9,
+            10
+        ],
+        "frontArea_Sum": 61,
+        "frontArea_OddEven": "1:4",
+        "frontArea_IsConsecutive": false,
+        "frontArea_Span": 22
+    },
+    {
+        "openCode": "14,18,21,24,29+03,06",
+        "code": "cjdlt",
+        "expect": "2025108",
+        "name": "超级大乐透",
+        "time": "2025-09-20 21:24:01",
+        "frontArea": [
+            14,
+            18,
+            21,
+            24,
+            29
+        ],
+        "backArea": [
+            3,
+            6
+        ],
+        "frontArea_Sum": 106,
+        "frontArea_OddEven": "2:3",
+        "frontArea_IsConsecutive": false,
+        "frontArea_Span": 15
+    },
+    {
+        "openCode": "05,07,08,15,33+06,10",
+        "code": "cjdlt",
+        "expect": "2025107",
+        "name": "超级大乐透",
+        "time": "2025-09-17 21:19:41",
+        "frontArea": [
+            5,
+            7,
+            8,
+            15,
+            33
+        ],
+        "backArea": [
+            6,
+            10
+        ],
+        "frontArea_Sum": 68,
+        "frontArea_OddEven": "4:1",
+        "frontArea_IsConsecutive": true,
+        "frontArea_Span": 28
+    },
+    {
+        "openCode": "05,06,11,26,29+05,10",
+        "code": "cjdlt",
+        "expect": "2025106",
+        "name": "超级大乐透",
+        "time": "2025-09-15 21:22:21",
+        "frontArea": [
+            5,
+            6,
+            11,
+            26,
+            29
+        ],
+        "backArea": [
+            5,
+            10
+        ],
+        "frontArea_Sum": 77,
+        "frontArea_OddEven": "3:2",
+        "frontArea_IsConsecutive": true,
+        "frontArea_Span": 24
+    },
+    {
+        "openCode": "15,16,25,28,34+10,12",
+        "code": "cjdlt",
+        "expect": "2025105",
+        "name": "超级大乐透",
+        "time": "2025-09-13 21:16:19",
+        "frontArea": [
+            15,
+            16,
+            25,
+            28,
+            34
+        ],
+        "backArea": [
+            10,
+            12
+        ],
+        "frontArea_Sum": 118,
+        "frontArea_OddEven": "2:3",
+        "frontArea_IsConsecutive": true,
+        "frontArea_Span": 19
+    },
+    {
+        "openCode": "02,06,09,22,34+02,08",
+        "code": "cjdlt",
+        "expect": "2025104",
+        "name": "超级大乐透",
+        "time": "2025-09-10 21:21:47",
+        "frontArea": [
+            2,
+            6,
+            9,
+            22,
+            34
+        ],
+        "backArea": [
+            2,
+            8
+        ],
+        "frontArea_Sum": 73,
+        "frontArea_OddEven": "1:4",
+        "frontArea_IsConsecutive": false,
+        "frontArea_Span": 32
+    },
+    {
+        "openCode": "05,08,19,32,34+04,05",
+        "code": "cjdlt",
+        "expect": "2025103",
+        "name": "超级大乐透",
+        "time": "2025-09-08 21:19:38",
+        "frontArea": [
+            5,
+            8,
+            19,
+            32,
+            34
+        ],
+        "backArea": [
+            4,
+            5
+        ],
+        "frontArea_Sum": 98,
+        "frontArea_OddEven": "2:3",
+        "frontArea_IsConsecutive": false,
+        "frontArea_Span": 29
+    },
+    {
+        "openCode": "09,10,13,26,28+02,04",
+        "code": "cjdlt",
+        "expect": "2025102",
+        "name": "超级大乐透",
+        "time": "2025-09-06 21:18:44",
+        "frontArea": [
+            9,
+            10,
+            13,
+            26,
+            28
+        ],
+        "backArea": [
+            2,
+            4
+        ],
+        "frontArea_Sum": 86,
+        "frontArea_OddEven": "2:3",
+        "frontArea_IsConsecutive": true,
+        "frontArea_Span": 19
+    },
+    {
+        "openCode": "05,07,19,26,32+08,09",
+        "code": "cjdlt",
+        "expect": "2025101",
+        "name": "超级大乐透",
+        "time": "2025-09-03 21:16:12",
+        "frontArea": [
+            5,
+            7,
+            19,
+            26,
+            32
+        ],
+        "backArea": [
+            8,
+            9
+        ],
+        "frontArea_Sum": 89,
+        "frontArea_OddEven": "3:2",
+        "frontArea_IsConsecutive": false,
+        "frontArea_Span": 27
+    },
+    {
+        "openCode": "26,28,32,34,35+02,07",
+        "code": "cjdlt",
+        "expect": "2025100",
+        "name": "超级大乐透",
+        "time": "2025-09-01 21:18:10",
+        "frontArea": [
+            26,
+            28,
+            32,
+            34,
+            35
+        ],
+        "backArea": [
+            2,
+            7
+        ],
+        "frontArea_Sum": 155,
+        "frontArea_OddEven": "1:4",
+        "frontArea_IsConsecutive": true,
+        "frontArea_Span": 9
+    },
+    {
+        "openCode": "06,12,20,26,31+02,04",
+        "code": "cjdlt",
+        "expect": "2025099",
+        "name": "超级大乐透",
+        "time": "2025-08-30 21:22:06",
+        "frontArea": [
+            6,
+            12,
+            20,
+            26,
+            31
+        ],
+        "backArea": [
+            2,
+            4
+        ],
+        "frontArea_Sum": 95,
+        "frontArea_OddEven": "1:4",
+        "frontArea_IsConsecutive": false,
+        "frontArea_Span": 25
+    },
+    {
+        "openCode": "01,07,09,10,23+10,12",
+        "code": "cjdlt",
+        "expect": "2025098",
+        "name": "超级大乐透",
+        "time": "2025-08-27 21:18:56",
+        "frontArea": [
+            1,
+            7,
+            9,
+            10,
+            23
+        ],
+        "backArea": [
+            10,
+            12
+        ],
+        "frontArea_Sum": 50,
+        "frontArea_OddEven": "4:1",
+        "frontArea_IsConsecutive": true,
+        "frontArea_Span": 22
+    },
+    {
+        "openCode": "05,24,25,32,34+01,09",
+        "code": "cjdlt",
+        "expect": "2025097",
+        "name": "超级大乐透",
+        "time": "2025-08-25 21:19:37",
+        "frontArea": [
+            5,
+            24,
+            25,
+            32,
+            34
+        ],
+        "backArea": [
+            1,
+            9
+        ],
+        "frontArea_Sum": 120,
+        "frontArea_OddEven": "2:3",
+        "frontArea_IsConsecutive": true,
+        "frontArea_Span": 29
+    },
+    {
+        "openCode": "02,11,17,22,24+07,09",
+        "code": "cjdlt",
+        "expect": "2025096",
+        "name": "超级大乐透",
+        "time": "2025-08-23 21:22:35",
+        "frontArea": [
+            2,
+            11,
+            17,
+            22,
+            24
+        ],
+        "backArea": [
+            7,
+            9
+        ],
+        "frontArea_Sum": 76,
+        "frontArea_OddEven": "2:3",
+        "frontArea_IsConsecutive": false,
+        "frontArea_Span": 22
+    },
+    {
+        "openCode": "07,13,14,19,27+06,10",
+        "code": "cjdlt",
+        "expect": "2025095",
+        "name": "超级大乐透",
+        "time": "2025-08-20 21:21:05",
+        "frontArea": [
+            7,
+            13,
+            14,
+            19,
+            27
+        ],
+        "backArea": [
+            6,
+            10
+        ],
+        "frontArea_Sum": 80,
+        "frontArea_OddEven": "4:1",
+        "frontArea_IsConsecutive": true,
+        "frontArea_Span": 20
+    },
+    {
+        "openCode": "04,09,17,30,33+05,09",
+        "code": "cjdlt",
+        "expect": "2025094",
+        "name": "超级大乐透",
+        "time": "2025-08-18 21:21:43",
+        "frontArea": [
+            4,
+            9,
+            17,
+            30,
+            33
+        ],
+        "backArea": [
+            5,
+            9
+        ],
+        "frontArea_Sum": 93,
+        "frontArea_OddEven": "3:2",
+        "frontArea_IsConsecutive": false,
+        "frontArea_Span": 29
+    },
+    {
+        "openCode": "01,07,09,16,30+02,05",
+        "code": "cjdlt",
+        "expect": "2025093",
+        "name": "超级大乐透",
+        "time": "2025-08-16 21:19:11",
+        "frontArea": [
+            1,
+            7,
+            9,
+            16,
+            30
+        ],
+        "backArea": [
+            2,
+            5
+        ],
+        "frontArea_Sum": 63,
+        "frontArea_OddEven": "3:2",
+        "frontArea_IsConsecutive": false,
+        "frontArea_Span": 29
+    },
+    {
+        "openCode": "04,10,17,25,32+05,07",
+        "code": "cjdlt",
+        "expect": "2025092",
+        "name": "超级大乐透",
+        "time": "2025-08-13 21:21:52",
+        "frontArea": [
+            4,
+            10,
+            17,
+            25,
+            32
+        ],
+        "backArea": [
+            5,
+            7
+        ],
+        "frontArea_Sum": 88,
+        "frontArea_OddEven": "2:3",
+        "frontArea_IsConsecutive": false,
+        "frontArea_Span": 28
+    },
+    {
+        "openCode": "01,19,22,25,27+03,10",
+        "code": "cjdlt",
+        "expect": "2025091",
+        "name": "超级大乐透",
+        "time": "2025-08-11 21:21:18",
+        "frontArea": [
+            1,
+            19,
+            22,
+            25,
+            27
+        ],
+        "backArea": [
+            3,
+            10
+        ],
+        "frontArea_Sum": 94,
+        "frontArea_OddEven": "4:1",
+        "frontArea_IsConsecutive": false,
+        "frontArea_Span": 26
+    },
+    {
+        "openCode": "06,14,19,22,27+01,04",
+        "code": "cjdlt",
+        "expect": "2025090",
+        "name": "超级大乐透",
+        "time": "2025-08-09 21:18:47",
+        "frontArea": [
+            6,
+            14,
+            19,
+            22,
+            27
+        ],
+        "backArea": [
+            1,
+            4
+        ],
+        "frontArea_Sum": 88,
+        "frontArea_OddEven": "2:3",
+        "frontArea_IsConsecutive": false,
+        "frontArea_Span": 21
+    },
+    {
+        "openCode": "02,11,12,32,34+03,10",
+        "code": "cjdlt",
+        "expect": "2025089",
+        "name": "超级大乐透",
+        "time": "2025-08-06 21:22:04",
+        "frontArea": [
+            2,
+            11,
+            12,
+            32,
+            34
+        ],
+        "backArea": [
+            3,
+            10
+        ],
+        "frontArea_Sum": 91,
+        "frontArea_OddEven": "1:4",
+        "frontArea_IsConsecutive": true,
+        "frontArea_Span": 32
+    },
+    {
+        "openCode": "08,09,10,11,35+05,11",
+        "code": "cjdlt",
+        "expect": "2025088",
+        "name": "超级大乐透",
+        "time": "2025-08-04 21:19:15",
+        "frontArea": [
+            8,
+            9,
+            10,
+            11,
+            35
+        ],
+        "backArea": [
+            5,
+            11
+        ],
+        "frontArea_Sum": 73,
+        "frontArea_OddEven": "3:2",
+        "frontArea_IsConsecutive": true,
+        "frontArea_Span": 27
+    },
+    {
+        "openCode": "05,13,14,16,20+03,08",
+        "code": "cjdlt",
+        "expect": "2025087",
+        "name": "超级大乐透",
+        "time": "2025-08-02 21:24:06",
+        "frontArea": [
+            5,
+            13,
+            14,
+            16,
+            20
+        ],
+        "backArea": [
+            3,
+            8
+        ],
+        "frontArea_Sum": 68,
+        "frontArea_OddEven": "2:3",
+        "frontArea_IsConsecutive": true,
+        "frontArea_Span": 15
+    },
+    {
+        "openCode": "02,06,23,24,33+01,10",
+        "code": "cjdlt",
+        "expect": "2025086",
+        "name": "超级大乐透",
+        "time": "2025-07-30 21:18:10",
+        "frontArea": [
+            2,
+            6,
+            23,
+            24,
+            33
+        ],
+        "backArea": [
+            1,
+            10
+        ],
+        "frontArea_Sum": 88,
+        "frontArea_OddEven": "2:3",
+        "frontArea_IsConsecutive": true,
+        "frontArea_Span": 31
+    },
+    {
+        "openCode": "02,05,09,14,33+04,09",
+        "code": "cjdlt",
+        "expect": "2025085",
+        "name": "超级大乐透",
+        "time": "2025-07-28 21:19:07",
+        "frontArea": [
+            2,
+            5,
+            9,
+            14,
+            33
+        ],
+        "backArea": [
+            4,
+            9
+        ],
+        "frontArea_Sum": 63,
+        "frontArea_OddEven": "3:2",
+        "frontArea_IsConsecutive": false,
+        "frontArea_Span": 31
+    },
+    {
+        "openCode": "09,11,13,18,29+04,11",
+        "code": "cjdlt",
+        "expect": "2025084",
+        "name": "超级大乐透",
+        "time": "2025-07-26 21:18:15",
+        "frontArea": [
+            9,
+            11,
+            13,
+            18,
+            29
+        ],
+        "backArea": [
+            4,
+            11
+        ],
+        "frontArea_Sum": 80,
+        "frontArea_OddEven": "4:1",
+        "frontArea_IsConsecutive": false,
+        "frontArea_Span": 20
+    },
+    {
+        "openCode": "12,17,18,20,34+02,05",
+        "code": "cjdlt",
+        "expect": "2025083",
+        "name": "超级大乐透",
+        "time": "2025-07-23 21:17:37",
+        "frontArea": [
+            12,
+            17,
+            18,
+            20,
+            34
+        ],
+        "backArea": [
+            2,
+            5
+        ],
+        "frontArea_Sum": 101,
+        "frontArea_OddEven": "1:4",
+        "frontArea_IsConsecutive": true,
+        "frontArea_Span": 22
+    },
+    {
+        "openCode": "02,03,04,12,26+01,08",
+        "code": "cjdlt",
+        "expect": "2025082",
+        "name": "超级大乐透",
+        "time": "2025-07-21 21:18:06",
+        "frontArea": [
+            2,
+            3,
+            4,
+            12,
+            26
+        ],
+        "backArea": [
+            1,
+            8
+        ],
+        "frontArea_Sum": 47,
+        "frontArea_OddEven": "1:4",
+        "frontArea_IsConsecutive": true,
+        "frontArea_Span": 24
+    },
+    {
+        "openCode": "01,04,06,15,18+02,03",
+        "code": "cjdlt",
+        "expect": "2025081",
+        "name": "超级大乐透",
+        "time": "2025-07-19 21:18:23",
+        "frontArea": [
+            1,
+            4,
+            6,
+            15,
+            18
+        ],
+        "backArea": [
+            2,
+            3
+        ],
+        "frontArea_Sum": 44,
+        "frontArea_OddEven": "2:3",
+        "frontArea_IsConsecutive": false,
+        "frontArea_Span": 17
+    },
+    {
+        "openCode": "09,10,18,22,24+03,12",
+        "code": "cjdlt",
+        "expect": "2025080",
+        "name": "超级大乐透",
+        "time": "2025-07-16 21:18:36",
+        "frontArea": [
+            9,
+            10,
+            18,
+            22,
+            24
+        ],
+        "backArea": [
+            3,
+            12
+        ],
+        "frontArea_Sum": 83,
+        "frontArea_OddEven": "1:4",
+        "frontArea_IsConsecutive": true,
+        "frontArea_Span": 15
+    },
+    {
+        "openCode": "02,14,32,34,35+05,11",
+        "code": "cjdlt",
+        "expect": "2025079",
+        "name": "超级大乐透",
+        "time": "2025-07-14 21:18:02",
+        "frontArea": [
+            2,
+            14,
+            32,
+            34,
+            35
+        ],
+        "backArea": [
+            5,
+            11
+        ],
+        "frontArea_Sum": 117,
+        "frontArea_OddEven": "1:4",
+        "frontArea_IsConsecutive": true,
+        "frontArea_Span": 33
+    },
+    {
+        "openCode": "07,10,15,21,24+05,06",
+        "code": "cjdlt",
+        "expect": "2025078",
+        "name": "超级大乐透",
+        "time": "2025-07-12 21:18:07",
+        "frontArea": [
+            7,
+            10,
+            15,
+            21,
+            24
+        ],
+        "backArea": [
+            5,
+            6
+        ],
+        "frontArea_Sum": 77,
+        "frontArea_OddEven": "3:2",
+        "frontArea_IsConsecutive": false,
+        "frontArea_Span": 17
+    },
+    {
+        "openCode": "12,14,16,19,28+01,04",
+        "code": "cjdlt",
+        "expect": "2025077",
+        "name": "超级大乐透",
+        "time": "2025-07-09 21:17:05",
+        "frontArea": [
+            12,
+            14,
+            16,
+            19,
+            28
+        ],
+        "backArea": [
+            1,
+            4
+        ],
+        "frontArea_Sum": 89,
+        "frontArea_OddEven": "1:4",
+        "frontArea_IsConsecutive": false,
+        "frontArea_Span": 16
+    },
+    {
+        "openCode": "11,18,22,25,29+04,12",
+        "code": "cjdlt",
+        "expect": "2025076",
+        "name": "超级大乐透",
+        "time": "2025-07-07 21:19:03",
+        "frontArea": [
+            11,
+            18,
+            22,
+            25,
+            29
+        ],
+        "backArea": [
+            4,
+            12
+        ],
+        "frontArea_Sum": 105,
+        "frontArea_OddEven": "3:2",
+        "frontArea_IsConsecutive": false,
+        "frontArea_Span": 18
+    },
+    {
+        "openCode": "08,12,16,19,35+06,09",
+        "code": "cjdlt",
+        "expect": "2025075",
+        "name": "超级大乐透",
+        "time": "2025-07-05 21:18:48",
+        "frontArea": [
+            8,
+            12,
+            16,
+            19,
+            35
+        ],
+        "backArea": [
+            6,
+            9
+        ],
+        "frontArea_Sum": 90,
+        "frontArea_OddEven": "2:3",
+        "frontArea_IsConsecutive": false,
+        "frontArea_Span": 27
+    },
+    {
+        "openCode": "02,11,15,18,21+05,10",
+        "code": "cjdlt",
+        "expect": "2025074",
+        "name": "超级大乐透",
+        "time": "2025-07-02 21:19:45",
+        "frontArea": [
+            2,
+            11,
+            15,
+            18,
+            21
+        ],
+        "backArea": [
+            5,
+            10
+        ],
+        "frontArea_Sum": 67,
+        "frontArea_OddEven": "3:2",
+        "frontArea_IsConsecutive": false,
+        "frontArea_Span": 19
+    },
+    {
+        "openCode": "01,04,17,33,34+03,09",
+        "code": "cjdlt",
+        "expect": "2025073",
+        "name": "超级大乐透",
+        "time": "2025-06-30 21:18:39",
+        "frontArea": [
+            1,
+            4,
+            17,
+            33,
+            34
+        ],
+        "backArea": [
+            3,
+            9
+        ],
+        "frontArea_Sum": 89,
+        "frontArea_OddEven": "3:2",
+        "frontArea_IsConsecutive": true,
+        "frontArea_Span": 33
+    },
+    {
+        "openCode": "04,07,15,24,29+01,04",
+        "code": "cjdlt",
+        "expect": "2025072",
+        "name": "超级大乐透",
+        "time": "2025-06-28 21:18:22",
+        "frontArea": [
+            4,
+            7,
+            15,
+            24,
+            29
+        ],
+        "backArea": [
+            1,
+            4
+        ],
+        "frontArea_Sum": 79,
+        "frontArea_OddEven": "3:2",
+        "frontArea_IsConsecutive": false,
+        "frontArea_Span": 25
+    },
+    {
+        "openCode": "01,08,25,31,33+05,11",
+        "code": "cjdlt",
+        "expect": "2025071",
+        "name": "超级大乐透",
+        "time": "2025-06-25 21:19:26",
+        "frontArea": [
+            1,
+            8,
+            25,
+            31,
+            33
+        ],
+        "backArea": [
+            5,
+            11
+        ],
+        "frontArea_Sum": 98,
+        "frontArea_OddEven": "4:1",
+        "frontArea_IsConsecutive": false,
+        "frontArea_Span": 32
+    },
+    {
+        "openCode": "08,09,15,20,22+04,12",
+        "code": "cjdlt",
+        "expect": "2025070",
+        "name": "超级大乐透",
+        "time": "2025-06-23 21:21:09",
+        "frontArea": [
+            8,
+            9,
+            15,
+            20,
+            22
+        ],
+        "backArea": [
+            4,
+            12
+        ],
+        "frontArea_Sum": 74,
+        "frontArea_OddEven": "2:3",
+        "frontArea_IsConsecutive": true,
+        "frontArea_Span": 14
+    },
+    {
+        "openCode": "04,06,07,33,34+09,10",
+        "code": "cjdlt",
+        "expect": "2025069",
+        "name": "超级大乐透",
+        "time": "2025-06-21 21:17:46",
+        "frontArea": [
+            4,
+            6,
+            7,
+            33,
+            34
+        ],
+        "backArea": [
+            9,
+            10
+        ],
+        "frontArea_Sum": 84,
+        "frontArea_OddEven": "2:3",
+        "frontArea_IsConsecutive": true,
+        "frontArea_Span": 30
+    },
+    {
+        "openCode": "01,04,17,20,22+04,10",
+        "code": "cjdlt",
+        "expect": "2025068",
+        "name": "超级大乐透",
+        "time": "2025-06-18 21:19:18",
+        "frontArea": [
+            1,
+            4,
+            17,
+            20,
+            22
+        ],
+        "backArea": [
+            4,
+            10
+        ],
+        "frontArea_Sum": 64,
+        "frontArea_OddEven": "2:3",
+        "frontArea_IsConsecutive": false,
+        "frontArea_Span": 21
+    },
+    {
+        "openCode": "06,10,12,21,22+01,06",
+        "code": "cjdlt",
+        "expect": "2025067",
+        "name": "超级大乐透",
+        "time": "2025-06-16 21:19:52",
+        "frontArea": [
+            6,
+            10,
+            12,
+            21,
+            22
+        ],
+        "backArea": [
+            1,
+            6
+        ],
+        "frontArea_Sum": 71,
+        "frontArea_OddEven": "1:4",
+        "frontArea_IsConsecutive": true,
+        "frontArea_Span": 16
+    }
+]

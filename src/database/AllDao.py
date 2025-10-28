@@ -9,86 +9,68 @@ class AllDAO:
 
     def __init__(self, connection_config: Dict[str, Any]):
         self.connection_config = connection_config
-        self.connection = None
+        self.connection: Optional[mysql.connector.MySQLConnection] = None
 
     def connect(self) -> bool:
         """建立数据库连接"""
         try:
-            self.connection = mysql.connector.connect(**self.connection_config)
+            if not self.is_connected():
+                self.connection = mysql.connector.connect(**self.connection_config)
+                self._connected = True
             return True
-        except Exception as e:
+        except mysql.connector.Error as e:
             print(f"数据库连接失败: {e}")
+            self._connected = False
             return False
 
     def disconnect(self):
         """关闭数据库连接"""
         if self.connection and self.connection.is_connected():
             self.connection.close()
+            self._connected = False
 
     def execute_query(self, query: str, params: tuple = None) -> List[Dict]:
         """执行查询语句"""
+        if not self.connect(): return []
         try:
-            if not self.connection or not self.connection.is_connected():
-                self.connect()
-
-            cursor = self.connection.cursor(dictionary=True)
-            cursor.execute(query, params or ())
-            result = cursor.fetchall()
-            cursor.close()
-            return result
-        except Exception as e:
+            with self.connection.cursor(dictionary=True) as cursor:
+                cursor.execute(query, params or ())
+                return cursor.fetchall()
+        except mysql.connector.Error as e:
             print(f"查询执行失败: {e}")
             return []
 
-    def execute_update(self, query: str, params: tuple = None) -> bool:
-        """执行更新语句"""
+    def execute_update(self, query: str, params: tuple = None) -> Optional[int]:
+        """执行更新/插入语句，返回影响的行数或最后插入的ID"""
+        if not self.connect(): return None
         try:
-            if not self.connection or not self.connection.is_connected():
-                self.connect()
+            with self.connection.cursor() as cursor:
+                cursor.execute(query, params or ())
+                self.connection.commit()
+                # 如果是INSERT，lastrowid是新ID；如果是UPDATE，rowcount是影响行数
+                return cursor.lastrowid if cursor.lastrowid else cursor.rowcount
+        except mysql.connector.Error as e:
+            print(f"更新/插入执行失败: {e}")
+            if self.connection: self.connection.rollback()
+            return None
 
-            cursor = self.connection.cursor()
-            cursor.execute(query, params or ())
-            self.connection.commit()
-            print(f"✅ SQL 执行成功: {query}")
-            cursor.close()
-            return True
-        except Exception as e:
-            print(f"更新执行失败: {e}")
-            if self.connection:
-                self.connection.rollback()
-            return False
-
-    def execute_many(self, query: str, params_list: List[tuple]) -> bool:
+    def execute_many(self, query: str, params_list: List[tuple]) -> Optional[int]:
         """批量执行更新语句"""
+        if not self.connect(): return None
         try:
-            if not self.connection or not self.connection.is_connected():
-                self.connect()
-
-            cursor = self.connection.cursor()
-            cursor.executemany(query, params_list)
-            self.connection.commit()
-            cursor.close()
-            return True
-        except Exception as e:
+            with self.connection.cursor() as cursor:
+                cursor.executemany(query, params_list)
+                self.connection.commit()
+                return cursor.rowcount
+        except mysql.connector.Error as e:
             print(f"批量更新执行失败: {e}")
-            if self.connection:
-                self.connection.rollback()
-            return False
-
-    def get_last_insert_id(self) -> Optional[int]:
-        """获取最后插入的ID - 修复版本"""
-        try:
-            if not self.connection or not self.connection.is_connected():
-                self.connect()
-
-            cursor = self.connection.cursor()
-            cursor.execute("SELECT LAST_INSERT_ID()")
-            result = cursor.fetchone()
-            cursor.close()
-
-            if result and result[0]:
-                return result[0]
+            if self.connection: self.connection.rollback()
             return None
-        except Exception as e:
-            print(f"获取最后插入ID失败: {e}")
-            return None
+
+    def get_last_insert_id(self, cursor) -> Optional[int]:
+        """获取指定游标的最后插入ID"""
+        return cursor.lastrowid
+
+    def is_connected(self) -> bool:
+        """检查连接状态"""
+        return self.connection and self.connection.is_connected()

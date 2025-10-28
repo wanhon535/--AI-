@@ -1,3 +1,4 @@
+# file: src/engine/adaptive_weight_updater.py (Final, Corrected Version)
 from typing import Dict
 from math import isfinite
 
@@ -10,7 +11,7 @@ class AdaptiveWeightUpdater:
 
     def __init__(self, alpha: float = 0.6):
         """
-        :param alpha: 新得分的权重（0..1）。alpha越大越依赖当前得分；越小越平滑。
+        alpha: 新得分的权重（0..1）。alpha越大越依赖当前得分；越小越平滑。
         """
         self.alpha = alpha
 
@@ -19,20 +20,20 @@ class AdaptiveWeightUpdater:
         if not current_scores:
             return {}
 
-        algos = set(current_scores.keys())
-        if historical_avg:
-            algos.update(historical_avg.keys())
+        historical_avg = historical_avg or {}
+        # 合并所有算法的名称
+        algos = set(current_scores.keys()) | set(historical_avg.keys())
 
         # 规范化当前得分
         cur_sum = sum(v for v in current_scores.values() if isfinite(v) and v >= 0) or 1.0
         cur_norm = {k: max(0.0, current_scores.get(k, 0.0)) / cur_sum for k in algos}
 
         # 规范化历史平均分
-        hist_norm = {}
-        if historical_avg:
-            hist_sum = sum(v for v in historical_avg.values() if isfinite(v) and v >= 0) or 1.0
+        hist_sum = sum(v for v in historical_avg.values() if isfinite(v) and v >= 0) or 1.0
+        if hist_sum > 0:
             hist_norm = {k: max(0.0, historical_avg.get(k, 0.0)) / hist_sum for k in algos}
         else:
+            # 如果没有历史，则给予平均权重
             hist_norm = {k: 1.0 / len(algos) for k in algos} if algos else {}
 
         # 计算融合得分

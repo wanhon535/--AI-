@@ -25,6 +25,11 @@ class DatabaseManager:
         self.connection_manager = DatabaseConnectionManager(host, user, password, database, port)
         self._connected = False
 
+    def get_dao(self, dao_class):
+        """兼容接口：直接从 connection_manager 获取 DAO"""
+        return self.connection_manager.get_dao(dao_class)
+
+
     def connect(self) -> bool:
         """建立数据库连接"""
         try:
@@ -46,6 +51,13 @@ class DatabaseManager:
         # 使用LotteryHistoryDAO来执行通用查询
         dao = self.connection_manager.get_dao(LotteryHistoryDAO)
         return dao.execute_query(query, params)
+
+    def get_last_insert_id(self) -> int:
+        """
+        返回上一次 INSERT 操作生成的自增 ID。
+        """
+        return self.last_insert_id
+
 
     def execute_update(self, query: str, params: tuple = None) -> bool:
         """执行更新语句（兼容原有接口）"""

@@ -1,54 +1,45 @@
-# file: src/engine/algorithm_runner.py
-# 算法运行器模块，负责加载和运行各种预测算法
-
-from typing import Dict, Any, List
+# file: src/engine/algorithm_runner.py (Upgraded to accept weights)
+from typing import Dict, Any, List, Optional
 from src.model.lottery_models import LotteryHistory
-from src.engine.recommendation_engine import RecommendationEngine
 
-# 导入你的算法类
+# 导入所有算法
+from src.algorithms.dynamic_ensemble_optimizer import DynamicEnsembleOptimizer
+from src.algorithms.statistical_algorithms import *
 from src.algorithms.advanced_algorithms.bayesian_number_predictor import BayesianNumberPredictor
 from src.algorithms.advanced_algorithms.markov_transition_model import MarkovTransitionModel
-from src.algorithms.advanced_algorithms.neural_lottery_predictor import NeuralLotteryPredictor
 from src.algorithms.advanced_algorithms.number_graph_analyzer import NumberGraphAnalyzer
-from src.algorithms.advanced_algorithms.hit_rate_optimizer import HitRateOptimizer
 
 
-def run_algorithm_layer(history_data: List[LotteryHistory]) -> Dict[str, Any]:
+def run_algorithm_layer(
+        history_data: List[LotteryHistory],
+        weights: Optional[Dict[str, float]] = None
+) -> Dict[str, Any]:
     """
-    运行算法层（Bayesian / Markov / Neural / Graph / HitOptimizer 等）
-    返回统一格式的 model_outputs 供 LLM 融合使用。
-    
-    参数:
-        history_data (List[LotteryHistory]): 历史开奖数据列表
-        
-    返回:
-        Dict[str, Any]: 包含各算法预测结果的字典，键为算法名称，值为预测结果
+    运行算法层，并使用一个元算法 (DynamicEnsembleOptimizer) 来整合结果。
+
+    :param history_data: 历史开奖数据列表
+    :param weights: 从数据库学习到的动态权重
+    :return: 一个包含单一键 (优化器名称) 和其综合预测结果的字典
     """
-    # 初始化推荐引擎
-    engine = RecommendationEngine()
+    print("  - [Algorithm Runner] 正在组建基础算法团队...")
+    base_algorithms = [
+        FrequencyAnalysisAlgorithm(), HotColdNumberAlgorithm(), OmissionValueAlgorithm(),
+        BayesianNumberPredictor(), MarkovTransitionModel(), NumberGraphAnalyzer(),
+    ]
 
-    # 注册算法并分配权重
-    # 贝叶斯预测器：基于历史频率和贝叶斯更新的概率预测模型
-    engine.add_algorithm(BayesianNumberPredictor(), weight=0.25)
-    # 马尔可夫转移模型：基于号码间转移概率的预测模型
-    engine.add_algorithm(MarkovTransitionModel(), weight=0.2)
-    # 神经网络预测器：使用LSTM神经网络进行预测
-    engine.add_algorithm(NeuralLotteryPredictor(), weight=0.25)
-    # 号码图分析器：基于共现图和PageRank算法分析号码关系
-    engine.add_algorithm(NumberGraphAnalyzer(), weight=0.15)
-    # 命中率优化器：通过遗传算法优化号码组合的命中率
-    engine.add_algorithm(HitRateOptimizer(), weight=0.15)
+    print("  - [Algorithm Runner] 正在初始化动态集成优化器...")
+    optimizer = DynamicEnsembleOptimizer(base_algorithms)
 
-    # 训练所有注册的算法
-    engine.train_all_algorithms(history_data)
+    # 关键一步：注入从 main.py 传递过来的、学习到的权重
+    if weights:
+        optimizer.current_weights = weights
+        print(f"  - [Algorithm Runner] ✅ 已成功注入学习到的权重。")
+    else:
+        print(f"  - [Algorithm Runner] ⚠️ 未提供权重，优化器将使用默认权重。")
 
-    # 生成推荐结果（单独保存算法预测的原始数据）
-    model_outputs = {}
+    print("  - [Algorithm Runner] 优化器开始训练和预测...")
+    optimizer.train(history_data)
+    final_report = optimizer.predict(history_data)
 
-    # 遍历所有已训练的算法，获取它们的预测结果
-    for algo in engine.algorithms:
-        if algo.is_trained:
-            prediction = algo.predict(history_data)
-            model_outputs[algo.name] = prediction
-
-    return model_outputs
+    # 返回以优化器名为键的单一报告，这正是LLM需要的
+    return {optimizer.name: final_report}

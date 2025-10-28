@@ -1,4 +1,5 @@
 # 彩票历史数据
+
 # src/database/curd/lottery_history_dao.py
 import json
 from typing import List, Optional
@@ -9,6 +10,7 @@ from src.model.lottery_models import LotteryHistory
 
 class LotteryHistoryDAO(AllDAO):
     """彩票历史数据访问对象"""
+
 
     def get_latest_lottery_history(self, limit: int = 50) -> List[LotteryHistory]:
         """获取最新的历史开奖数据（按日期倒序）"""

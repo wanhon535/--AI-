@@ -1,8 +1,7 @@
-# 算法推荐DAO
-# src/database/curd/algorithm_recommendation_dao.py
+# src/database/crud/algorithm_recommendation_dao.py
 import json
 import re
-from typing import List, Optional,Dict
+from typing import List, Optional, Dict
 from datetime import datetime
 from ..AllDao import AllDAO
 from src.model.lottery_models import AlgorithmRecommendation
@@ -41,10 +40,18 @@ class AlgorithmRecommendationDAO(AllDAO):
             model_name  # models
         )
 
-        if self.execute_update(query, params):
-            # 获取最后插入的ID
-            return self.get_last_insert_id()
-        return None
+        try:
+            # ✅ 这里我们手动创建 cursor 执行 SQL，保证能传入 get_last_insert_id(cursor)
+            with self.connection.cursor() as cursor:
+                cursor.execute(query, params)
+                self.connection.commit()
+                last_id = self.get_last_insert_id(cursor)
+                print(f"✅ 插入推荐主记录成功，ID: {last_id}")
+                return last_id
+        except Exception as e:
+            print(f"❌ 插入推荐主记录失败: {e}")
+            self.connection.rollback()
+            return None
 
     def insert_algorithm_recommendation(self, recommendation: AlgorithmRecommendation) -> Optional[int]:
         """插入算法推荐记录，返回插入的ID"""
@@ -68,9 +75,17 @@ class AlgorithmRecommendationDAO(AllDAO):
             recommendation.algorithm_version
         )
 
-        if self.execute_update(query, params):
-            return self.get_last_insert_id()
-        return None
+        try:
+            with self.connection.cursor() as cursor:
+                cursor.execute(query, params)
+                self.connection.commit()
+                last_id = self.get_last_insert_id(cursor)
+                print(f"✅ 插入推荐记录成功，ID: {last_id}")
+                return last_id
+        except Exception as e:
+            print(f"❌ 插入推荐记录失败: {e}")
+            self.connection.rollback()
+            return None
 
     def get_recommendation_by_period(self, period_number: str) -> Optional[AlgorithmRecommendation]:
         """根据期号获取推荐记录"""
@@ -99,7 +114,12 @@ class AlgorithmRecommendationDAO(AllDAO):
 
     def get_latest_id(self) -> Optional[int]:
         """获取最新插入记录的ID"""
-        return self.get_last_insert_id()
+        try:
+            with self.connection.cursor() as cursor:
+                return self.get_last_insert_id(cursor)
+        except Exception as e:
+            print(f"⚠️ 获取最新插入ID失败: {e}")
+            return None
 
     @staticmethod
     def parse_ai_recommendations(content: str) -> List[Dict]:
@@ -121,19 +141,16 @@ class AlgorithmRecommendationDAO(AllDAO):
             print("❌ 解析失败：未在内容中找到推荐表格的表头。")
             return recommendations
 
-        # 2. 确定数据开始的行（智能跳过表头和分隔线）
+        # 2. 跳过表头和分隔线
         data_start_index = header_index + 1
         if data_start_index < len(lines) and '---' in lines[data_start_index]:
             data_start_index += 1
 
-        # 3. 编译正则表达式以提高效率，用于逐行解析数据
+        # 3. 编译正则表达式以提高效率
         pattern = re.compile(r'\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|')
 
-        # 4. 从数据起始行开始遍历
         for i in range(data_start_index, len(lines)):
             line = lines[i].strip()
-
-            # 如果行不是以'|'开头，说明表格内容已结束
             if not line.startswith('|'):
                 break
 
@@ -142,14 +159,11 @@ class AlgorithmRecommendationDAO(AllDAO):
                 continue
 
             try:
-                # 依次提取五个分组的内容，并使用 re.sub() 清理加粗标记 '**' 和两端空格
                 recommend_type = re.sub(r'\*\*', '', match.group(1)).strip()
                 strategy_logic = re.sub(r'\*\*', '', match.group(2)).strip()
                 front_numbers = re.sub(r'\*\*', '', match.group(3)).strip()
                 back_numbers = re.sub(r'\*\*', '', match.group(4)).strip()
-                # 清理概率字符串后，再转换为浮点数
-                win_probability_str = re.sub(r'\*\*', '', match.group(5)).strip()
-                win_probability = float(win_probability_str)
+                win_probability = float(re.sub(r'\*\*', '', match.group(5)).strip())
 
                 recommendations.append({
                     "recommend_type": recommend_type,
@@ -159,7 +173,7 @@ class AlgorithmRecommendationDAO(AllDAO):
                     "win_probability": win_probability
                 })
             except (ValueError, IndexError) as e:
-                print(f"⚠️  警告：跳过格式不正确的行: '{line}'. 错误: {e}")
+                print(f"⚠️ 跳过格式不正确的行: '{line}'. 错误: {e}")
                 continue
 
         return recommendations

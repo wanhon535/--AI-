@@ -79,7 +79,7 @@ def create_quick_actions():
     st.markdown("### ⚡ 快速操作")
     col1, col2, col3, col4 = st.columns(4)
     if col1.button("🎯 智能分析", use_container_width=True): st.switch_page("pages/Analysis.py")  # 假设你有这个页面
-    if col2.button("📊 数据看板", use_container_width=True): st.switch_page("pages/Dashboard.py")  # 假设你有这个页面
+    if col2.button("📊 数据看板", use_container_width=True): st.switch_page("pages/_Dashboard.py")  # 假设你有这个页面
     if col3.button("💸 我要投注", use_container_width=True): st.switch_page("pages/Betting.py")  # 假设你有这个页面
     if col4.button("📈 历史记录", use_container_width=True): st.switch_page("pages/History.py")  # 假设你有这个页面
 

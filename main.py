@@ -1,44 +1,51 @@
-# main.py (Final Architecture V4.3 - With Chinese Logging)
+# main.py (V5.0 - Final Integrated Self-Learning System)
 
 import json
 import os
 import sys
 import traceback
-from datetime import datetime
 
-# --- 1. 项目环境设置 ---
+# --- 1. Project Environment Setup ---
+# This ensures that Python can find all your modules in the 'src' directory
 project_root = os.path.abspath(os.path.dirname(__file__))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
+
 print(f"项目根目录已添加到路径: {project_root}")
 
-# --- 2. 导入所有需要的模块 ---
+# --- 2. Import All System Components ---
 from src.database.database_manager import DatabaseManager
-from src.prompt_templates import build_lotto_pro_prompt_v14_omega
-from src.llm.clients import get_llm_client
-from src.engine.recommendation_engine import RecommendationEngine
 from src.engine.performance_logger import PerformanceLogger
+from src.engine.recommendation_engine import RecommendationEngine
+from src.llm.clients import get_llm_client
+from src.prompt_templates import build_lotto_pro_prompt_v14_omega
 
-# --- 导入所有算法 ---
-from src.algorithms.statistical_algorithms import FrequencyAnalysisAlgorithm, HotColdNumberAlgorithm, \
-    OmissionValueAlgorithm
+# --- Import all algorithms ---
+# a) Meta-Algorithm (The "Chief Strategy Officer")
+from src.algorithms.dynamic_ensemble_optimizer import DynamicEnsembleOptimizer
+# b) Base Algorithms (The "Department Managers")
+from src.algorithms.statistical_algorithms import (
+    FrequencyAnalysisAlgorithm, HotColdNumberAlgorithm, OmissionValueAlgorithm
+)
 from src.algorithms.advanced_algorithms.bayesian_number_predictor import BayesianNumberPredictor
 from src.algorithms.advanced_algorithms.markov_transition_model import MarkovTransitionModel
 from src.algorithms.advanced_algorithms.number_graph_analyzer import NumberGraphAnalyzer
-from src.algorithms.dynamic_ensemble_optimizer import DynamicEnsembleOptimizer
 
 
 def main():
-
-    """主函数，负责编排完整的“评估-学习-决策”闭环"""
+    """
+    Main function to orchestrate the entire 'Learn -> Predict -> Decide -> Store' pipeline.
+    """
     print("\n" + "=" * 60)
-    print("🔥  启动 LOTTO-PRO 自学习预测管道 V4.3")
+    print("🔥  启动 LOTTO-PRO 自学习预测管道 V5.0")
     print("=" * 60)
 
-
-    db_manager = None  # 确保在finally块中可用
+    db_manager = None
     try:
-        # --- 初始化核心组件 ---
+        # --- [PIPELINE STEP 1/5: INITIALIZATION & DATA FETCHING] ---
+        print("\n[PIPELINE STEP 1/5] 初始化组件并获取数据...")
+
+        # Initialize and connect to the database
         db_manager = DatabaseManager(
             host='localhost', user='root', password='123456789',
             database='lottery_analysis_system', port=3309
@@ -46,86 +53,75 @@ def main():
         if not db_manager.connect():
             raise ConnectionError("数据库连接失败。")
 
-        performance_logger = PerformanceLogger(db_manager=db_manager, smoothing_alpha=0.6, hist_window=5)
+        # Initialize the learning component, injecting the database manager
+        performance_logger = PerformanceLogger(db_manager=db_manager, hist_window=5)
 
-        # ======================================================================
-        # 阶段一：学习 (从历史表现中学习)
-        # ======================================================================
-        print("\n[管道步骤 1/4] 从历史表现中学习...")
-        # (在真实场景中，此步骤会在开奖后独立运行以评估和更新权重)
-        print("  - [开发模式] 本次运行跳过实时评估环节，将直接使用数据库中的历史平均分。")
-
-        # ======================================================================
-        # 阶段二：预测 (运行完整的算法矩阵)
-        # ======================================================================
-        print("\n[管道步骤 2/4] 为下一期生成预测...")
-
-        # 1. 获取最新数据
+        # Fetch primary data for the prediction
         recent_draws = db_manager.get_latest_lottery_history(100)
         next_issue = db_manager.get_next_period_number()
-        print(f"  - 数据获取成功。目标期号: {next_issue}")
+        print(f"✅ 组件初始化成功。目标期号: {next_issue}")
 
-        # 2. 从数据库动态加载学习到的最新权重 (闭环的关键！)
+        # --- [PIPELINE STEP 2/5: ADAPTIVE WEIGHT LEARNING] ---
+        print("\n[PIPELINE STEP 2/5] 从历史表现中学习动态权重...")
+
+        # Fetch the latest learned weights from the database
         latest_weights = performance_logger.dao.get_average_scores_last_n_issues(n_issues=5)
+
         if not latest_weights:
             print("  - ⚠️ 警告: 未找到历史表现数据。优化器将使用默认等权重。")
         else:
             print(f"  - ✅ 已从数据库加载自适应权重: {json.dumps(latest_weights, indent=2)}")
 
-        # 3. 组建基础算法团队
+        # --- [PIPELINE STEP 3/5: ALGORITHM ENGINE EXECUTION] ---
+        print("\n[PIPELINE STEP 3/5] 运行元算法引擎...")
+
+        # 1. Assemble the team of base algorithms
         base_algorithms = [
             FrequencyAnalysisAlgorithm(), HotColdNumberAlgorithm(), OmissionValueAlgorithm(),
             BayesianNumberPredictor(), MarkovTransitionModel(), NumberGraphAnalyzer(),
         ]
 
-        # 4. 任命“首席策略官”(DynamicEnsembleOptimizer)，并注入最新的动态权重！
+        # 2. Appoint the "Chief Strategy Officer" and inject the learned weights
         chief_strategy_officer = DynamicEnsembleOptimizer(base_algorithms)
         if latest_weights:
             chief_strategy_officer.current_weights = latest_weights
             print("  - 已将学习到的权重注入优化器。")
 
-        # 5. 启动专业引擎，执行最高决策
+        # 3. Initialize the main engine and set the meta-algorithm
         engine = RecommendationEngine()
         engine.set_meta_algorithm(chief_strategy_officer)
+
+        # 4. Run the entire stack to get the final, optimized report
         final_report = engine.generate_final_recommendation(recent_draws)
 
-        # ======================================================================
-        # 阶段三：LLM最终裁决 (FINAL JUDGEMENT)
-        # ======================================================================
-        print("\n[管道步骤 3/4] 提交综合报告给大语言模型进行最终裁决...")
+        # --- [PIPELINE STEP 4/5: LLM FINAL JUDGEMENT] ---
+        print("\n[PIPELINE STEP 4/5] 提交综合报告给大语言模型进行最终裁决...")
 
-        # 1. 构建Prompt
         prompt_text, _ = build_lotto_pro_prompt_v14_omega(
             recent_draws=recent_draws,
             model_outputs=final_report,
             performance_log=chief_strategy_officer.current_weights,
-            last_performance_report="[系统日志] 权重已根据数据库中最近的表现分数自动调整。",
+            last_performance_report="[System Log] Weights are auto-adjusted based on the average score from the last 5 evaluated periods.",
             next_issue_hint=next_issue,
         )
-        print("  - Prompt 构建成功，准备提交给 CEO (LLM)。")
+        print("  - Prompt 构建成功。")
 
-        # 2. 调用LLM
         MODEL_TO_USE = "qwen3-max"
         llm_client = get_llm_client(MODEL_TO_USE)
         response_str = llm_client.generate(
             system_prompt=prompt_text,
-            user_prompt="请根据这份高度整合的战略建议书，进行最终的投资组合构建，并返回完整的JSON对象。"
+            user_prompt="Based on the integrated strategy report, execute your final analysis and generate the complete JSON investment portfolio."
         )
-        print(f"  - ✅ 已收到来自 {MODEL_TO_USE} 的决策。")
+        print("  - ✅ LLM 最终决策已接收。")
 
-        # ======================================================================
-        # 阶段四：执行 (解析并存储到数据库)
-        # ======================================================================
-        print("\n[PIPELINE] STEP 4/4: Parsing and saving results to database...")
+        # --- [PIPELINE STEP 5/5: PARSING & STORING RESULTS] ---
+        print("\n[PIPELINE STEP 5/5] 解析决策并保存至数据库...")
         try:
             response_data = json.loads(response_str)
             recommendations_from_llm = response_data['cognitive_cycle_outputs']['phase4_portfolio_construction'][
                 'recommendations']
-            print(f"  - ✅ Decision parsed successfully. Found {len(recommendations_from_llm)} portfolio items.")
 
-            # --- vvvvvvvvvvv  恢复并强化的数据库写入逻辑 vvvvvvvvvvv ---
-
-            # 1. 插入推荐主记录 (algorithm_recommendation)
+            # 1. Insert recommendation root record
             final_summary = response_data.get('final_summary', {})
             root_id = db_manager.insert_algorithm_recommendation_root(
                 period_number=next_issue,
@@ -135,43 +131,36 @@ def main():
             )
 
             if not root_id:
-                print("  - ❌ CRITICAL: Failed to insert recommendation root record. Aborting save.")
-                return
+                raise Exception("插入推荐主记录失败，未返回ID。")
 
-            print(f"  - ✅ Recommendation root record inserted. ID: {root_id}")
+            print(f"  - ✅ 推荐主记录已保存，ID: {root_id}")
 
-            # 2. 准备推荐详情数据
+            # 2. Prepare and insert recommendation details
             details_to_insert = []
             for rec in recommendations_from_llm:
-                front_str = ','.join(map(str, rec.get('front_numbers', [])))
-                back_str = ','.join(map(str, rec.get('back_numbers', [])))
-
                 details_to_insert.append({
                     "recommend_type": rec.get('type', 'Unknown'),
                     "strategy_logic": rec.get('role_in_portfolio', ''),
-                    "front_numbers": front_str,
-                    "back_numbers": back_str,
+                    "front_numbers": ','.join(map(str, rec.get('front_numbers', []))),
+                    "back_numbers": ','.join(map(str, rec.get('back_numbers', []))),
                     "win_probability": rec.get('confidence_score', 0.0)
                 })
 
-            # 3. 批量插入推荐详情 (recommendation_details)
             success = db_manager.insert_recommendation_details_batch(
                 recommendation_id=root_id,
                 details=details_to_insert
             )
 
             if success:
-                print("  - ✅ All recommendation details have been successfully saved to the database.")
+                print(f"  - ✅ {len(details_to_insert)} 条推荐详情已成功保存。")
             else:
-                print("  - ❌ FAILED: Could not insert recommendation details into the database.")
-
-            # --- ^^^^^^^^^^^ 数据库写入逻辑结束 ^^^^^^^^^^^ ---
+                raise Exception("批量插入推荐详情失败。")
 
         except (json.JSONDecodeError, KeyError) as e:
-            print(f"  - ❌ CRITICAL: Failed to parse or save LLM's decision. Error: {e}")
+            print(f"  - ❌ 严重错误: 解析或保存LLM决策时失败。错误: {e}")
             with open("error_response.log", "w", encoding="utf-8") as f:
                 f.write(response_str)
-            print("  - Raw response saved to error_response.log for debugging.")
+            print("  - 原始响应已保存至 error_response.log。")
 
     except Exception as e:
         print(f"\n❌ 管道执行期间发生意外错误: {e}")
