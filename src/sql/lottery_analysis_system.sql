@@ -48,6 +48,30 @@ CREATE TABLE `ab_test_configs`  (
 -- Records of ab_test_configs
 -- ----------------------------
 
+    -- 文件：src/sql/upgrade_add_performance_tables.sql
+-- 用途：记录各算法每期表现 & 持久化当前算法权重
+
+-- 1) 算法表现记录表
+CREATE TABLE IF NOT EXISTS algorithm_performance (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  period_number VARCHAR(32) NOT NULL,
+  algorithm VARCHAR(128) NOT NULL,
+  hits FLOAT NOT NULL COMMENT '平均命中数（front+back的期望或实绩）',
+  hit_rate FLOAT NOT NULL COMMENT '命中率（0-1）',
+  score FLOAT NOT NULL COMMENT '算法表现得分，用于权重化',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_period_algo (period_number, algorithm)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 2) 保存/持久化当前算法权重（用于下次prompt注入）
+CREATE TABLE IF NOT EXISTS algorithm_weights (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  algorithm VARCHAR(128) NOT NULL UNIQUE,
+  weight FLOAT NOT NULL COMMENT '0-1 归一化权重',
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
 -- ----------------------------
 -- Table structure for algorithm_configs
 -- ----------------------------

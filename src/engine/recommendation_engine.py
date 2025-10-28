@@ -1,93 +1,49 @@
-# engine/recommendation_engine.py
+# src/engine/recommendation_engine.py (Final Architecture Version)
+
 from typing import List, Dict, Any
-from src.model.lottery_models import LotteryHistory, AlgorithmRecommendation
 from src.algorithms.base_algorithm import BaseAlgorithm
+from src.model.lottery_models import LotteryHistory
+
 
 class RecommendationEngine:
-    """推荐引擎"""
+    """
+    推荐引擎 V3.0 (元算法调度器)
+    职责：只管理和运行最高层级的元算法（如动态集成器）。
+    """
 
     def __init__(self):
-        self.algorithms: List[BaseAlgorithm] = []
-        self.algorithm_weights: Dict[str, float] = {}
+        """初始化引擎。"""
+        self._meta_algorithm: BaseAlgorithm = None
+        print("✅ Recommendation Engine V3.0 (Meta-Scheduler) initialized.")
 
-    def add_algorithm(self, algorithm: BaseAlgorithm, weight: float = 1.0):
-        """添加算法到推荐引擎"""
-        self.algorithms.append(algorithm)
-        self.algorithm_weights[algorithm.name] = weight
+    def set_meta_algorithm(self, meta_algorithm: BaseAlgorithm):
+        """
+        设置当前要执行的核心元算法。
+        整个引擎一次只相信一个最高决策者。
+        """
+        self._meta_algorithm = meta_algorithm
+        print(f"  - Meta-algorithm '{meta_algorithm.name}' has been set as the primary executor.")
 
-    def train_all_algorithms(self, history_data: List[LotteryHistory]) -> Dict[str, bool]:
-        """训练所有算法"""
-        results = {}
-        for algorithm in self.algorithms:
-            results[algorithm.name] = algorithm.train(history_data)
-        return results
+    def generate_final_recommendation(self, history_data: List[LotteryHistory]) -> Dict[str, Any]:
+        """
+        【核心方法】执行元算法，并返回其最终的、唯一的输出报告。
 
-    def generate_recommendations(self, history_data: List[LotteryHistory],
-                               user_preferences: Dict[str, Any] = None) -> AlgorithmRecommendation:
-        """生成推荐结果"""
-        all_recommendations = []
-        algorithm_weights = []
+        :param history_data: 用于训练和预测的历史数据。
+        :return: 元算法的预测结果。
+        """
+        if not self._meta_algorithm:
+            raise RuntimeError("No meta-algorithm has been set in the Recommendation Engine.")
 
-        for algorithm in self.algorithms:
-            if algorithm.is_trained:
-                prediction = algorithm.predict(history_data)
-                if 'recommendations' in prediction:
-                    all_recommendations.append(prediction['recommendations'])
-                    algorithm_weights.append(self.algorithm_weights.get(algorithm.name, 1.0))
+        print(f"\n[ENGINE] Executing meta-algorithm: {self._meta_algorithm.name}...")
 
-        # 集成所有算法的推荐结果
-        integrated_recommendations = self._integrate_recommendations(
-            all_recommendations, algorithm_weights
-        )
+        try:
+            # 训练并预测元算法（元算法内部会管理所有基础算法）
+            self._meta_algorithm.train(history_data)
+            prediction = self._meta_algorithm.predict(history_data)
+            print(f"[ENGINE] ✅ Final report from '{self._meta_algorithm.name}' generated successfully.")
+            # 我们将结果包装在以算法名为键的字典中，以保持与LLM Prompt的兼容性
+            return {self._meta_algorithm.name: prediction}
 
-        # 创建推荐记录
-        recommendation_record = AlgorithmRecommendation(
-            id=0,  # 数据库会自动生成
-            period_number=self._get_next_period_number(history_data),
-            recommend_time=self._get_current_time(),
-            algorithm_version="ensemble_v1.0",
-            recommendation_combinations=integrated_recommendations,
-            algorithm_parameters={},
-            model_weights={k: v for k, v in self.algorithm_weights.items() if k in [alg.name for alg in self.algorithms]},
-            confidence_score=self._calculate_overall_confidence(integrated_recommendations),
-            risk_level=self._assess_risk_level(integrated_recommendations),
-            analysis_basis={},
-            key_patterns=[],
-            recommend_type="primary"
-        )
-
-        return recommendation_record
-
-    def _integrate_recommendations(self, recommendations_list: List, weights: List[float]) -> List[Dict[str, Any]]:
-        """集成多个算法的推荐结果"""
-        # 实现推荐结果集成逻辑
-        return recommendations_list[0] if recommendations_list else []
-
-    def _get_next_period_number(self, history_data: List[LotteryHistory]) -> str:
-        """获取下一期期号"""
-        if not history_data:
-            return "2024001"
-        latest_period = max([h.period_number for h in history_data])
-        return str(int(latest_period) + 1)
-
-    def _get_current_time(self):
-        """获取当前时间"""
-        from datetime import datetime
-        return datetime.now()
-
-    def _calculate_overall_confidence(self, recommendations: List[Dict[str, Any]]) -> float:
-        """计算总体置信度"""
-        if not recommendations:
-            return 0.0
-        confidences = [rec.get('confidence', 0.0) for rec in recommendations]
-        return sum(confidences) / len(confidences)
-
-    def _assess_risk_level(self, recommendations: List[Dict[str, Any]]) -> str:
-        """评估风险等级"""
-        avg_confidence = self._calculate_overall_confidence(recommendations)
-        if avg_confidence >= 0.8:
-            return "low"
-        elif avg_confidence >= 0.6:
-            return "medium"
-        else:
-            return "high"
+        except Exception as e:
+            print(f"[ENGINE] ❌ CRITICAL ERROR during meta-algorithm execution: {e}")
+            return {self._meta_algorithm.name: {"error": str(e)}}

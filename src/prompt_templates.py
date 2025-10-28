@@ -1,8 +1,9 @@
+# 请用这段代码完整替换掉你文件里的旧函数
+
+import json  # 确保文件顶部有这个导入
 from typing import List, Tuple, Dict, Any
 from src.model.lottery_models import LotteryHistory
-import json  # 引入json库用于格式化输出
 
-# 行业SSS提示词
 
 def build_lotto_pro_prompt_v14_omega(
         recent_draws: List[LotteryHistory],
@@ -13,6 +14,7 @@ def build_lotto_pro_prompt_v14_omega(
         last_performance_report: str = None,
         budget: float = 100.0,
         risk_preference: str = "中性"
+
 ) -> Tuple[str, str]:
     """
     Lotto-Pro V14.5 "Prometheus-Ω" —— 统一版提示词
@@ -48,7 +50,7 @@ def build_lotto_pro_prompt_v14_omega(
     ]) or "无历史表现记录，使用默认权重。"
 
     uc = user_constraints or {}
-    max_bets = uc.get("max_bets", 5)  # 默认值调整为5，更灵活
+    max_bets = uc.get("max_bets", 5)
     budget_val = uc.get("budget", budget)
 
     # === 2. Prompt 主体构建 (Prompt Construction) ===
@@ -172,8 +174,8 @@ JSON的字段和结构必须严格遵循以下模板：
         {{
           "type": "核心复式(7+2)",
           "cost": 42.0,
-          "front_numbers":,
-          "back_numbers":,
+          "front_numbers": [],
+          "back_numbers": [],
           "expected_hit_count": 1.95,
           "confidence_score": 0.91,
           "role_in_portfolio": "主力攻击，覆盖高概率热区，旨在确保基础命中。"
@@ -181,8 +183,8 @@ JSON的字段和结构必须严格遵循以下模板：
         {{
           "type": "卫星单式A (冷码突击)",
           "cost": 2.0,
-          "front_numbers":,
-          "back_numbers":,
+          "front_numbers": [],
+          "back_numbers": [],
           "expected_hit_count": 0.62,
           "confidence_score": 0.65,
           "role_in_portfolio": "高风险对冲，捕捉高遗漏冷码的反转机会。"
@@ -206,3 +208,4 @@ JSON的字段和结构必须严格遵循以下模板：
   }}
 }}
 """
+    return prompt.strip(), next_issue

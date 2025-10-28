@@ -30,10 +30,14 @@ E:/pyhton/AI/AICp/
 └── src/                           # 源代码根目录
     ├── __init__.py                # 包初始化文件
     ├── __pycache__/               # Python编译缓存目录
-    │   └── (1 items)
+    │   └── (2 items)
     ├── algorithms/                # 算法模块目录
     │   ├── __init__.py            # 算法包初始化文件
+    │   ├── __pycache__/           # 缓存目录
+    │   │   └── (3 items)
     │   ├── advanced_algorithms/   # 高级算法目录
+    │   │   ├── __pycache__/       # 缓存目录
+    │   │   │   └── (6 items)
     │   │   ├── adaptive_meta_ensemble.py      # 自适应元集成算法
     │   │   ├── backtesting_engine.py          # 回测引擎
     │   │   ├── bayesian_number_predictor.py   # 贝叶斯号码预测器
@@ -44,9 +48,12 @@ E:/pyhton/AI/AICp/
     │   │   ├── neural_lottery_predictor.py    # 神经网络彩票预测器
     │   │   └── number_graph_analyzer.py       # 号码图分析器
     │   ├── base_algorithm.py      # 算法基类
+    │   ├── dynamic_ensemble_optimizer.py # 动态集成优化器
     │   ├── ha.py                  # 临时文件
+    │   ├── intelligent_pattern_recognizer.py # 智能模式识别器
     │   ├── ml_algorithms.py       # 机器学习算法
     │   ├── optimization_algorithms.py # 优化算法
+    │   ├── real_time_feedback_learner.py # 实时反馈学习器
     │   ├── risk_management_algorithms.py # 风险管理算法
     │   └── statistical_algorithms.py # 统计分析算法
     ├── analysis/                  # 分析模块目录
@@ -60,9 +67,12 @@ E:/pyhton/AI/AICp/
     │   └── auth_utils.py          # 认证工具函数
     ├── bf/                        # 布局和功能文件目录
     │   ├── aitongyi.py            # AI通义相关文件
+    │   ├── prompt_templates.py    # 提示模板文件
     │   └── 大乐透历史开奖数据.md  # 大乐透历史开奖数据文档
     ├── config/                    # 配置文件目录
     │   ├── __init__.py            # 配置包初始化文件
+    │   ├── __pycache__/           # 缓存目录
+    │   │   └── (3 items)
     │   ├── database_config.py     # 数据库配置
     │   ├── logging_config.py      # 日志配置
     │   └── system_config.py       # 系统配置
@@ -76,7 +86,10 @@ E:/pyhton/AI/AICp/
     │   │   ├── AlgorithmConfigDAO.py          # 算法配置DAO
     │   │   ├── AlgorithmPerformanceDAO.py     # 算法性能DAO
     │   │   ├── NumberStatisticsDAO.py         # 号码统计DAO
+    │   │   ├── __pycache__/       # 缓存目录
+    │   │   │   └── (8 items)
     │   │   ├── add.py             # 添加数据操作
+    │   │   ├── algorithm_performance_dao.py   # 算法性能DAO
     │   │   ├── algorithm_recommendation_dao.py # 算法推荐DAO
     │   │   ├── instead.py         # 替换数据操作
     │   │   ├── lottery_history_dao.py         # 彩票历史DAO
@@ -87,15 +100,24 @@ E:/pyhton/AI/AICp/
     │   └── database_manager.py    # 数据库管理器
     ├── engine/                    # 引擎模块目录
     │   ├── __init__.py            # 引擎包初始化文件
+    │   ├── __pycache__/           # 缓存目录
+    │   │   └── (3 items)
+    │   ├── adaptive_weight_updater.py # 自适应权重更新器
+    │   ├── algorithm_runner.py    # 算法运行器
     │   ├── evaluation_system.py   # 评估系统
+    │   ├── performance_logger.py  # 性能记录器
     │   └── recommendation_engine.py # 推荐引擎
     ├── img.png                    # 图片资源文件
     ├── llm/                       # 大语言模型相关目录
     │   ├── __init__.py            # 包初始化文件
-    │   ├── config.py              # LLM配置文件
+    │   ├── __pycache__/           # 缓存目录
+    │   │   └── (3 items)
     │   ├── bash.py                # Bash命令执行相关
+    │   ├── config.py              # LLM配置文件
     │   └── clients/               # 各种LLM客户端实现
     │       ├── __init__.py        # 客户端初始化文件
+    │       ├── __pycache__/       # 缓存目录
+    │       │   └── (3 items)
     │       ├── ai_caller.py       # AI调用接口文件
     │       ├── ai_callerv_1.0.py  # AI调用接口v1.0版本
     │       ├── gemini.py          # Gemini客户端
