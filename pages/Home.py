@@ -205,7 +205,4 @@ def render_home_page():
         db_manager.disconnect()
 
 
-if __name__ == "__main__":
-    render_home_page()
-else:
-    render_home_page()
+render_home_page()

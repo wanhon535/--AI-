@@ -3,6 +3,20 @@ import mysql.connector
 from datetime import datetime
 import json
 
+# 在文件开头添加导入语句
+import os
+import sys
+
+# 添加对 src.analysis.manager 的导入支持
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+try:
+    from src.analysis.manager import LotteryDataManager
+    MANAGER_AVAILABLE = True
+except ImportError:
+    MANAGER_AVAILABLE = False
+    print("⚠️ 无法导入 src.analysis.manager，将尝试从JSON文件读取数据")
+
 def calculate_ac_value(front_numbers):
     """计算AC值"""
     # AC值 = (实际间距数 - 理论最小间距数) / (理论最大间距数 - 理论最小间距数)
@@ -164,21 +178,66 @@ def batch_insert_lottery_records(records):
     print(f"📊 批量插入完成: 成功 {success_count} 条，失败 {fail_count} 条")
 
 # 示例使用
+# 替换原来的示例使用部分
 if __name__ == "__main__":
-    # 单条插入示例
-    insert_lottery_record(
-        period_number="2025067",
-        draw_date_str="2025-06-07",
-        front_numbers=[6, 10, 12, 21, 22],
-        back_numbers=[1, 6]
-    )
+    records_to_insert = []
 
-    # 批量插入示例
-    sample_records = [
-        ("2025068", "2025-06-09", [3, 7, 14, 18, 29], [2, 8])
-        # ("2025069", "2025-06-11", [1, 8, 15, 23, 30], [3, 9]),
-        # ("2025070", "2025-06-13", [2, 5, 10, 17, 20], [4, 10]),
+    # 方法1: 从 manager 获取数据
+    json_source_file = "dlt_history_data.json"
+    print(f"🚀 准备从 '{json_source_file}' 文件读取数据并插入数据库...")
 
-    ]
+    records_to_insert = []
 
-    batch_insert_lottery_records(sample_records)
+    # --- 2. 检查文件是否存在 ---
+    if not os.path.exists(json_source_file):
+        print(f"❌ 错误: 数据源文件 '{json_source_file}' 不存在。")
+        print("   请确保您的 manager.py 脚本已经运行，并且生成了此文件。")
+        print("   将使用内置的示例数据进行测试。")
+        # 如果文件不存在，回退到您的示例数据
+        records_to_insert = [
+            ("2025067", "2025-06-07", [6, 10, 12, 21, 22], [1, 6]),
+            ("2025068", "2025-06-09", [3, 7, 14, 18, 29], [2, 8]),
+            ("2025069", "2025-06-10", [4, 6, 7, 33, 34], [9, 10])
+        ]
+    else:
+        # --- 3. 从 JSON 文件读取和解析数据 ---
+        try:
+            with open(json_source_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+
+                if not isinstance(data, list):
+                    print("❌ 错误: JSON文件内容不是一个列表。")
+                else:
+                    # 遍历JSON中的每一条记录
+                    for item in data:
+                        # 从JSON item中提取函数需要的参数
+                        period_number = item.get('expect')
+                        # 从 'time' 字段中只提取日期部分
+                        draw_date_str = item.get('time', '').split(' ')[0]
+                        front_numbers = item.get('frontArea')
+                        back_numbers = item.get('backArea')
+
+                        # 校验数据完整性，确保所有需要的值都存在
+                        if period_number and draw_date_str and front_numbers and back_numbers:
+                            # 将提取的数据添加到待插入列表
+                            records_to_insert.append((
+                                period_number,
+                                draw_date_str,
+                                front_numbers,
+                                back_numbers
+                            ))
+                        else:
+                            print(f"⚠️ 警告: 跳过一条不完整的记录: {item}")
+
+                    print(f"📥 成功从 '{json_source_file}' 解析了 {len(records_to_insert)} 条有效记录。")
+
+        except Exception as e:
+            print(f"❌ 读取或解析 '{json_source_file}' 时发生严重错误: {e}")
+
+    # --- 4. 执行批量插入 ---
+    if records_to_insert:
+        # 倒序插入，确保数据库中的顺序是按期号从小到大
+        batch_insert_lottery_records(reversed(records_to_insert))
+    else:
+        print("🤷‍♂️ 未能从JSON文件或示例中获取任何数据，本次操作未执行任何插入。")
+

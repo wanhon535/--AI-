@@ -41,6 +41,30 @@ class DatabaseManager:
             print(f"数据库连接失败: {e}")
             return False
 
+    def close(self):
+        if self.connection.is_connected():
+            self.connection.close()
+    def fetch_all(self, query, params=None):
+        cursor = self.connection.cursor(dictionary=True)
+        cursor.execute(query, params or ())
+        result = cursor.fetchall()
+        cursor.close()
+        return result
+
+    def execute(self, query, params=None, commit=True):
+        cursor = self.connection.cursor()
+        cursor.execute(query, params or ())
+        if commit:
+            self.connection.commit()
+        cursor.close()
+
+    def fetch_one(self, query, params=None):
+        cursor = self.connection.cursor(dictionary=True)
+        cursor.execute(query, params or ())
+        result = cursor.fetchone()
+        cursor.close()
+        return result
+
     def disconnect(self):
         """关闭数据库连接"""
         self.connection_manager.disconnect_all()
@@ -58,6 +82,8 @@ class DatabaseManager:
         """
         return self.last_insert_id
 
+    def get_config(self):
+        return self.connection_manager.connection_config
 
     def execute_update(self, query: str, params: tuple = None) -> bool:
         """执行更新语句（兼容原有接口）"""

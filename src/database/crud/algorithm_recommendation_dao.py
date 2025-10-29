@@ -1,7 +1,7 @@
 # src/database/crud/algorithm_recommendation_dao.py
 import json
 import re
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict,Any
 from datetime import datetime
 from ..AllDao import AllDAO
 from src.model.lottery_models import AlgorithmRecommendation
@@ -111,6 +111,49 @@ class AlgorithmRecommendationDAO(AllDAO):
                 key_patterns=json.loads(row['key_patterns']) if row['key_patterns'] else None
             )
         return None
+
+    def get_earliest_period(self) -> Optional[int]:
+        """获取 algorithm_recommendation 表中最早的期号"""
+        sql = "SELECT period_number FROM algorithm_recommendation ORDER BY period_number ASC LIMIT 1"
+        try:
+            results = self.execute_query(sql)
+            if results:
+                return int(results[0]['period_number'])
+            return None
+        except Exception as e:
+            print(f"❌ 获取最早期号异常: {e}")
+            return None
+
+    def get_latest_period(self) -> Optional[int]:
+        """获取 algorithm_recommendation 表中最新的期号"""
+        sql = "SELECT period_number FROM algorithm_recommendation ORDER BY period_number DESC LIMIT 1"
+        try:
+            results = self.execute_query(sql)
+            if results:
+                return int(results[0]['period_number'])
+            return None
+        except Exception as e:
+            print(f"❌ 获取最新期号异常: {e}")
+            return None
+
+    def get_by_period(self, period_number: str) -> List[Dict[str, Any]]:
+        """
+        查询某一期号的所有算法推荐记录
+        返回列表，每条记录包含:
+        - model_name
+        - recommended_numbers
+        - confidence_score
+        """
+        sql = "SELECT * FROM algorithm_recommendation WHERE period_number=%s"
+        try:
+            results = self.execute_query(sql, (period_number,))
+            return results
+        except Exception as e:
+            print(f"❌ 查询 period_number={period_number} 异常: {e}")
+            return []
+
+
+
 
     def get_latest_id(self) -> Optional[int]:
         """获取最新插入记录的ID"""

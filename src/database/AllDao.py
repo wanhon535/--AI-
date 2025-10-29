@@ -7,8 +7,15 @@ from datetime import datetime
 class AllDAO:
     """基础数据访问对象类"""
 
-    def __init__(self, connection_config: Dict[str, Any]):
-        self.connection_config = connection_config
+    def __init__(self, connection_config):
+        if hasattr(connection_config, "get_config"):
+            # 如果传入 DatabaseManager，就自动取出配置字典
+            self.connection_config = connection_config.get_config()
+        elif isinstance(connection_config, dict):
+            self.connection_config = connection_config
+        else:
+            raise TypeError(f"无效的数据库配置类型: {type(connection_config)}")
+
         self.connection: Optional[mysql.connector.MySQLConnection] = None
 
     def connect(self) -> bool:

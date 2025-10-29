@@ -17,26 +17,35 @@ class PerformanceLogger:
         self.hist_window = hist_window
         print("[PerformanceLogger] Initialized successfully.")
 
-    def _score_from_predictions(self, prediction: Dict[str, Any], actual_draw: LotteryHistory) -> Dict[str, float]:
-        """计算命中、命中率和分数"""
-        front_actual = set(actual_draw.front_area)
-        back_actual = set(actual_draw.back_area)
-        total_numbers = len(front_actual) + len(back_actual)
-        if not total_numbers: return {'hits': 0.0, 'hit_rate': 0.0, 'score': 0.0}
+    def _score_from_predictions(self, prediction, actual_draw):
+        """
+        prediction: ModelPrediction 或老式 dict
+        actual_draw: LotteryHistory 对象
+        """
+        try:
+            # 兼容两种类型
+            if isinstance(prediction, dict):
+                front_pred = prediction.get('front_numbers', [])
+                back_pred = prediction.get('back_numbers', [])
+                confidence = prediction.get('confidence', 1.0)
+            else:  # ModelPrediction 对象
+                front_pred = prediction.front_area
+                back_pred = prediction.back_area
+                confidence = getattr(prediction, 'confidence', 1.0)
 
-        if isinstance(prediction, dict) and 'recommendations' in prediction and prediction['recommendations']:
-            recs = prediction['recommendations']
-            hit_counts = [
-                len(set(r.get('front_numbers', [])) & front_actual) + len(set(r.get('back_numbers', [])) & back_actual)
-                for r in recs]
-            if not hit_counts: return {'hits': 0.0, 'hit_rate': 0.0, 'score': 0.0}
+            # 计算命中数
+            front_hit = len(set(front_pred) & set(actual_draw.front_area))
+            back_hit = len(set(back_pred) & set(actual_draw.back_area))
 
-            avg_hits = float(sum(hit_counts)) / len(hit_counts)
-            avg_rate = avg_hits / total_numbers
-            score = round(avg_rate * (1 + avg_hits / 10), 6)
-            return {'hits': avg_hits, 'hit_rate': avg_rate, 'score': score}
+            # 计算命中率
+            hit_rate = (front_hit + back_hit) / (len(actual_draw.front_area) + len(actual_draw.back_area))
+            score = hit_rate * confidence
 
-        return {'hits': 0.0, 'hit_rate': 0.0, 'score': 0.0}
+            return {'hit_rate': hit_rate, 'score': score}
+
+        except Exception as e:
+            print(f"[PerformanceLogger] ⚠️ _score_from_predictions error: {e}")
+            return {'hit_rate': 0.0, 'score': 0.0}
 
     def evaluate_and_log_performance(self, issue: str, model_outputs: Dict[str, Any], actual_draw: LotteryHistory):
         """对本期所有算法的输出进行评估并写入数据库。"""
@@ -76,56 +85,93 @@ class PerformanceLogger:
             hist_avg[algo] = sum(last_scores) / len(last_scores) if last_scores else 0.0
         return hist_avg
 
-    def evaluate_and_update(self, issue: str, model_outputs: Dict[str, Any], actual_draw: LotteryHistory) -> Dict[str, float]:
+    def evaluate_and_update(self, issue: str, model_outputs: Dict[str, Any], actual_draw: LotteryHistory) -> Dict[
+        str, float]:
         """
-        对本期算法输出进行评估并写入数据库，同时更新自适应权重
-        :return: new_weights {algorithm_version: weight}
+        对本期算法输出进行评估并写入数据库，同时更新自适应权重。
+        返回结构：
+            {
+                "FrequencyAnalysisAlgorithm": 0.73,
+                "HotColdNumberAlgorithm": 0.62,
+                ...
+            }
+        方便上层 run_backtest_simulation 进行统计与动态加权。
         """
-        algo_scores = {}
+
+        algo_scores = {}  # 存储算法得分详情，如 {'algo_name': {'hit_rate': 0.6, 'score': 0.7}}
+        new_weights = {}  # 存储更新后的权重
+        simple_accuracy_dict = {}  # 最终返回的简化结构 {algo_name: float_score}
 
         for algo_name, prediction in (model_outputs or {}).items():
             try:
+                # === 1️⃣ 计算本期算法的评分指标 ===
                 metrics = self._score_from_predictions(prediction, actual_draw)
                 algo_scores[algo_name] = metrics
 
-                # 构建 AlgorithmPerformance 对象写入数据库
+                # === 2️⃣ 写入数据库 AlgorithmPerformance ===
                 performance = AlgorithmPerformance(
                     algorithm_version=algo_name,
                     total_recommendations=1,
                     total_periods_analyzed=1,
-                    avg_front_hit_rate=metrics['hit_rate'],
-                    avg_back_hit_rate=metrics['hit_rate'],
+                    avg_front_hit_rate=metrics.get('hit_rate', 0.0),
+                    avg_back_hit_rate=metrics.get('hit_rate', 0.0),
                     hit_distribution=None,
-                    confidence_accuracy=metrics['score'],
+                    confidence_accuracy=metrics.get('score', 0.0),
                     risk_adjusted_return=0.0,
                     stability_score=0.0,
                     consistency_rate=0.0,
-                    current_weight=metrics['score'],
-                    weight_history=[{'issue': issue, 'score': metrics['score'], 'timestamp': str(datetime.now())}],
+                    current_weight=metrics.get('score', 0.0),
+                    weight_history=[{
+                        'issue': issue,
+                        'score': metrics.get('score', 0.0),
+                        'timestamp': str(datetime.now())
+                    }],
                     performance_trend=""
                 )
+
                 self.dao.update_algorithm_performance(performance)
+
+                # === 3️⃣ 同时记录简化准确率结果供外层使用 ===
+                simple_accuracy_dict[algo_name] = round(metrics.get('hit_rate', 0.0), 4)
+
             except Exception as e:
-                print(f"[PerformanceLogger] Error evaluating {algo_name}: {e}")
+                print(f"[PerformanceLogger] ⚠️ Error evaluating {algo_name}: {e}")
                 continue
 
-        # 获取历史平均权重
-        hist_avg = self._get_historical_avg()  # {algo: avg_score}
+        # === 4️⃣ 获取历史平均权重（跨期平滑）===
+        try:
+            hist_avg = self._get_historical_avg()  # {algo_name: avg_score}
+        except Exception as e:
+            print(f"[PerformanceLogger] ⚠️ Failed to get historical average: {e}")
+            hist_avg = {}
 
-        # 当前分数用于更新权重
+        # === 5️⃣ 当前分数更新权重 ===
         current_scores = {k: v.get('score', 0.0) for k, v in algo_scores.items()}
-        new_weights = self.updater.update_weights(current_scores, historical_avg=hist_avg)
+        try:
+            new_weights = self.updater.update_weights(current_scores, historical_avg=hist_avg)
+        except Exception as e:
+            print(f"[PerformanceLogger] ⚠️ Weight updater error: {e}")
+            new_weights = current_scores
 
-        # 写回数据库 current_weight
+        # === 6️⃣ 写回数据库最新权重 ===
         for algo, weight in new_weights.items():
-            perf_list = self.dao.get_algorithm_performance(algo)
-            if perf_list:
-                perf = perf_list[-1]
-                perf.current_weight = weight
-                perf.weight_history.append({'issue': issue, 'score': weight, 'timestamp': str(datetime.now())})
-                self.dao.update_algorithm_performance(perf)
+            try:
+                perf_list = self.dao.get_algorithm_performance(algo)
+                if perf_list:
+                    perf = perf_list[-1]
+                    perf.current_weight = float(weight)
+                    perf.weight_history.append({
+                        'issue': issue,
+                        'score': float(weight),
+                        'timestamp': str(datetime.now())
+                    })
+                    self.dao.update_algorithm_performance(perf)
+            except Exception as e:
+                print(f"[PerformanceLogger] ⚠️ Failed to update weight for {algo}: {e}")
 
-        return new_weights
+        # === ✅ 7️⃣ 返回“简化准确率结果”，供 run_backtest_simulation 使用 ===
+        return simple_accuracy_dict
+
 
 # 调试
 if __name__ == "__main__":

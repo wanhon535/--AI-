@@ -1,10 +1,10 @@
 # config/database_config.py
 class DatabaseConfig:
     """数据库配置类"""
-    HOST = "localhost"
+    HOST = "127.0.0.1"
     PORT = 3309
     USER = "root"
-    PASSWORD = "root"
+    PASSWORD = "123456789"
     DATABASE = "lottery_analysis_system"
     CHARSET = "utf8mb4"
 

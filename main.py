@@ -58,6 +58,11 @@ def main():
 
         # Fetch primary data for the prediction
         recent_draws = db_manager.get_latest_lottery_history(100)
+        if recent_draws:
+            print("----------- 诊断信息：第一条历史数据的结构 -----------")
+            print(recent_draws[0])
+            print("----------------------------------------------------")
+
         next_issue = db_manager.get_next_period_number()
         print(f"✅ 组件初始化成功。目标期号: {next_issue}")
 
@@ -118,6 +123,9 @@ def main():
         print("\n[PIPELINE STEP 5/5] 解析决策并保存至数据库...")
         try:
             response_data = json.loads(response_str)
+            print("----------- LLM 原始响应 (格式化后) -----------")
+            print(json.dumps(response_data, indent=2, ensure_ascii=False))
+            print("-------------------------------------------------")
             recommendations_from_llm = response_data['cognitive_cycle_outputs']['phase4_portfolio_construction'][
                 'recommendations']
 

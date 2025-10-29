@@ -28,9 +28,12 @@ def build_lotto_pro_prompt_v14_omega(
     latest_issue = "未知"
     if recent_draws:
         try:
-            latest_issue = str(max(int(d.period_number) for d in recent_draws if str(d.period_number).isdigit()))
+            # ✅ 已修正
+            latest_issue = str(max(int(d['period_number']) for d in recent_draws if str(d['period_number']).isdigit()))
         except (ValueError, TypeError):
-            latest_issue = str(recent_draws[-1].period_number) if recent_draws else "未知"
+            # ✅【重要修正】这里也需要修改
+            latest_issue = str(recent_draws[-1]['period_number']) if recent_draws else "未知"
+
     next_issue = next_issue_hint or (str(int(latest_issue) + 1) if latest_issue.isdigit() else "下一期")
 
     # 格式化最近开奖数据
@@ -169,10 +172,10 @@ JSON的字段和结构必须严格遵循以下模板：
       "rationale": "热力图显示前区热号分布较为均匀（集中度0.58），缺乏绝对强核。同时，号码15、31的遗漏值已达阈值，概率显著回升。因此，采用主流热号与高遗漏冷号均衡搭配的对冲策略，以覆盖更广泛的可能性。"
     }},
     "phase4_portfolio_construction": {{
-      "allocation_summary": "核心复式(7+2)占预算约60%，两组卫星单式用于精准点杀，总成本控制在预算内。",
+      "allocation_summary": "核心复式(7+3)占预算约60%，两组卫星单式用于精准点杀，总成本控制在预算内。",
       "recommendations": [
         {{
-          "type": "核心复式(7+2)",
+          "type": "核心复式(7+3)",
           "cost": 42.0,
           "front_numbers": [],
           "back_numbers": [],
