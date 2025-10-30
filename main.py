@@ -3,7 +3,10 @@
 import json
 import os
 import sys
+import argparse
 import traceback
+from src.engine.system_orchestrator import SystemOrchestrator
+
 
 # --- 1. Project Environment Setup ---
 # This ensures that Python can find all your modules in the 'src' directory
@@ -133,9 +136,11 @@ def main():
             final_summary = response_data.get('final_summary', {})
             root_id = db_manager.insert_algorithm_recommendation_root(
                 period_number=next_issue,
-                model_name=f"{MODEL_TO_USE} ({response_data.get('request_meta', {}).get('engine_version', 'Prometheus')})",
+                # model_name=f"{MODEL_TO_USE} ({response_data.get('request_meta', {}).get('engine_version', 'Prometheus')})",
+                algorithm_version=f"{MODEL_TO_USE} ({response_data.get('request_meta', {}).get('engine_version', 'Prometheus')})",
                 confidence_score=final_summary.get('confidence_level', 0.8),
-                risk_level=final_summary.get('risk_assessment', 'medium')
+                risk_level=final_summary.get('risk_assessment', 'medium'),
+                analysis_basis=json.dumps(final_report, ensure_ascii=False)
             )
 
             if not root_id:
@@ -181,6 +186,8 @@ def main():
         print("\n" + "=" * 60)
         print("🏁  管道执行完毕。")
         print("=" * 60)
+
+
 
 
 if __name__ == "__main__":
