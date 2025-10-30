@@ -72,6 +72,60 @@ class LotteryHistoryDAO(AllDAO):
     #        """
     #     results = self.execute_query(query, (limit, offset))
     #     return self._convert_to_lottery_history_list(results)
+
+    def _convert_rows_to_history_list(self, rows: List[dict]) -> List[LotteryHistory]:
+        """
+        【新增的辅助方法】将从数据库查询出的字典行列表，安全地转换为 LotteryHistory 对象列表。
+        这个方法会处理 JSON 字段的解析和字段名转换。 (V2 - 健壮版)
+        """
+        results = []
+        if not rows:
+            return results
+
+        for row in rows:
+            try:
+                # 1. 准备构造函数需要的参数字典
+                init_params = {}
+
+                # 2. 从数据库行数据(row)中，安全地提取每一个需要的字段
+                init_params['id'] = row.get('id')
+                init_params['period_number'] = row.get('period_number')
+                init_params['draw_date'] = row.get('draw_date')
+                init_params['draw_time'] = row.get('draw_time')
+                init_params['sum_value'] = row.get('sum_value')
+                init_params['span_value'] = row.get('span_value')
+                init_params['ac_value'] = row.get('ac_value')
+                init_params['odd_even_ratio'] = row.get('odd_even_ratio')
+                init_params['size_ratio'] = row.get('size_ratio')
+                init_params['prime_composite_ratio'] = row.get('prime_composite_ratio')
+                init_params['consecutive_count'] = row.get('consecutive_count')
+                init_params['data_source'] = row.get('data_source')
+                init_params['data_quality'] = row.get('data_quality')
+                init_params['created_at'] = row.get('created_at')  # <-- 明确地获取 created_at
+
+                # 3. 处理需要合并和转换的字段
+                init_params['front_area'] = [
+                    row.get('front_area_1'), row.get('front_area_2'),
+                    row.get('front_area_3'), row.get('front_area_4'), row.get('front_area_5')
+                ]
+                init_params['back_area'] = [row.get('back_area_1'), row.get('back_area_2')]
+
+                # 4. 安全地解析JSON字段
+                consecutive_str = row.get('consecutive_numbers')
+                init_params['consecutive_numbers'] = json.loads(consecutive_str) if isinstance(consecutive_str,
+                                                                                               str) else consecutive_str
+
+                tail_str = row.get('tail_numbers')
+                init_params['tail_numbers'] = json.loads(tail_str) if isinstance(tail_str, str) else tail_str
+
+                # 5. 使用精确准备好的参数字典来创建对象，忽略所有其他无关字段
+                results.append(LotteryHistory(**init_params))
+
+            except (json.JSONDecodeError, TypeError, KeyError) as e:
+                print(f"⚠️ 解析或转换期号 {row.get('period_number')} 的数据时出错: {e}。该条记录将被跳过。")
+                continue
+        return results
+
     def get_lottery_history(self, limit: int = 100, offset: int = 0) -> List[LotteryHistory]:
         """
         分页获取历史开奖记录（默认返回最新100条）
@@ -129,53 +183,53 @@ class LotteryHistoryDAO(AllDAO):
                 return str(latest_period + 1)
         return ""
 
-    def _convert_rows_to_history_list(self, rows: List[dict]) -> List[LotteryHistory]:
-        """
-        【新增的辅助方法】将从数据库查询出的字典行列表，安全地转换为 LotteryHistory 对象列表。
-        这个方法会处理 JSON 字段的解析和字段名转换。
-        """
-        results = []
-        if not rows:
-            return results
-
-        for row in rows:
-            try:
-                # 复制一份，避免修改原始数据
-                processed_row = row.copy()
-                
-                # 将数据库字段转换为LotteryHistory类期望的参数格式
-                # 前区号码
-                front_area = [
-                    processed_row.pop('front_area_1'),
-                    processed_row.pop('front_area_2'),
-                    processed_row.pop('front_area_3'),
-                    processed_row.pop('front_area_4'),
-                    processed_row.pop('front_area_5')
-                ]
-                processed_row['front_area'] = front_area
-                
-                # 后区号码
-                back_area = [
-                    processed_row.pop('back_area_1'),
-                    processed_row.pop('back_area_2')
-                ]
-                processed_row['back_area'] = back_area
-
-                # --- 核心修正：手动解析 JSON 字符串 ---
-                if 'consecutive_numbers' in processed_row and isinstance(processed_row['consecutive_numbers'], str):
-                    processed_row['consecutive_numbers'] = json.loads(processed_row['consecutive_numbers'])
-                if 'tail_numbers' in processed_row and isinstance(processed_row['tail_numbers'], str):
-                    processed_row['tail_numbers'] = json.loads(processed_row['tail_numbers'])
-
-                # 现在 processed_row 中的数据类型是正确的，可以安全地创建对象
-                results.append(LotteryHistory(**processed_row))
-
-            except (json.JSONDecodeError, TypeError, KeyError) as e:
-                print(f"⚠️ 解析或转换期号 {row.get('period_number')} 的数据时出错: {e}。该条记录将被跳过。")
-                # 选择性地将原始行加入，或者直接跳过
-                # results.append(row)
-                continue
-        return results
+    # def _convert_rows_to_history_list(self, rows: List[dict]) -> List[LotteryHistory]:
+    #     """
+    #     【新增的辅助方法】将从数据库查询出的字典行列表，安全地转换为 LotteryHistory 对象列表。
+    #     这个方法会处理 JSON 字段的解析和字段名转换。
+    #     """
+    #     results = []
+    #     if not rows:
+    #         return results
+    #
+    #     for row in rows:
+    #         try:
+    #             # 复制一份，避免修改原始数据
+    #             processed_row = row.copy()
+    #
+    #             # 将数据库字段转换为LotteryHistory类期望的参数格式
+    #             # 前区号码
+    #             front_area = [
+    #                 processed_row.pop('front_area_1'),
+    #                 processed_row.pop('front_area_2'),
+    #                 processed_row.pop('front_area_3'),
+    #                 processed_row.pop('front_area_4'),
+    #                 processed_row.pop('front_area_5')
+    #             ]
+    #             processed_row['front_area'] = front_area
+    #
+    #             # 后区号码
+    #             back_area = [
+    #                 processed_row.pop('back_area_1'),
+    #                 processed_row.pop('back_area_2')
+    #             ]
+    #             processed_row['back_area'] = back_area
+    #
+    #             # --- 核心修正：手动解析 JSON 字符串 ---
+    #             if 'consecutive_numbers' in processed_row and isinstance(processed_row['consecutive_numbers'], str):
+    #                 processed_row['consecutive_numbers'] = json.loads(processed_row['consecutive_numbers'])
+    #             if 'tail_numbers' in processed_row and isinstance(processed_row['tail_numbers'], str):
+    #                 processed_row['tail_numbers'] = json.loads(processed_row['tail_numbers'])
+    #
+    #             # 现在 processed_row 中的数据类型是正确的，可以安全地创建对象
+    #             results.append(LotteryHistory(**processed_row))
+    #
+    #         except (json.JSONDecodeError, TypeError, KeyError) as e:
+    #             print(f"⚠️ 解析或转换期号 {row.get('period_number')} 的数据时出错: {e}。该条记录将被跳过。")
+    #             # 选择性地将原始行加入，或者直接跳过
+    #             # results.append(row)
+    #             continue
+    #     return results
 
     def get_all_period_numbers(self) -> set:
         """获取数据库中所有已存在的期号集合，用于快速去重检查。"""

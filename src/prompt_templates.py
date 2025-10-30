@@ -29,10 +29,10 @@ def build_lotto_pro_prompt_v14_omega(
     if recent_draws:
         try:
             # ✅ 已修正
-            latest_issue = str(max(int(d['period_number']) for d in recent_draws if str(d['period_number']).isdigit()))
+            latest_issue = str(max(int(d.period_number) for d in recent_draws if str(d.period_number).isdigit()))
         except (ValueError, TypeError):
             # ✅【重要修正】这里也需要修改
-            latest_issue = str(recent_draws[-1]['period_number']) if recent_draws else "未知"
+            latest_issue = str(recent_draws[-1].period_number) if recent_draws else "未知"
 
     next_issue = next_issue_hint or (str(int(latest_issue) + 1) if latest_issue.isdigit() else "下一期")
 

@@ -10,16 +10,23 @@ from src.model.lottery_models import AlgorithmRecommendation
 class AlgorithmRecommendationDAO(AllDAO):
     """算法推荐数据访问对象"""
 
-    def insert_algorithm_recommendation_root(self, period_number: str, model_name: str,
-                                             confidence_score: float, risk_level: str) -> Optional[int]:
-        """插入算法推荐根记录，返回插入的ID"""
-        if not period_number or not model_name:
-            print("❌ Invalid input: period_number and model_name are required.")
+    def insert_algorithm_recommendation_root(self, period_number: str, algorithm_version: str,
+                                             confidence_score: float, risk_level: str,
+                                             analysis_basis: Optional[str] = None) -> Optional[int]:
+        """
+        插入算法推荐根记录，返回插入的ID。
+        V2.1: 在保留原有逻辑基础上，增加了 algorithm_version 和 analysis_basis 参数。
+        """
+        # --- 您原有的输入验证逻辑，保持不变 ---
+        if not period_number or not algorithm_version:
+            # <<< 关键修改 1/3 >>>：将 model_name 检查改为 algorithm_version
+            print("❌ Invalid input: period_number and algorithm_version are required.")
             return None
         if not (0.0 <= confidence_score <= 1.0):
             print("❌ Invalid confidence_score: Must be between 0.0 and 1.0.")
             return None
 
+        # --- SQL 语句保持不变，因为它已经包含了所有字段 ---
         query = """
         INSERT INTO algorithm_recommendation (
             period_number, recommend_time, algorithm_version,
@@ -27,21 +34,25 @@ class AlgorithmRecommendationDAO(AllDAO):
             confidence_score, risk_level, analysis_basis, key_patterns, models
         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
+
+        # --- 参数准备部分进行修改 ---
         params = (
             period_number,
             datetime.now(),
-            model_name,
+            # <<< 关键修改 2/3 >>>：使用新的 algorithm_version 参数
+            algorithm_version,
             None,  # algorithm_parameters
             None,  # model_weights
             confidence_score,
             risk_level,
-            None,  # analysis_basis
+            # <<< 关键修改 3/3 >>>：使用新的 analysis_basis 参数
+            analysis_basis,
             None,  # key_patterns
-            model_name  # models
+            algorithm_version  # models (这里也使用 algorithm_version 保持一致)
         )
 
+        # --- 您原有的数据库操作和错误处理逻辑，保持不变 ---
         try:
-            # ✅ 这里我们手动创建 cursor 执行 SQL，保证能传入 get_last_insert_id(cursor)
             with self.connection.cursor() as cursor:
                 cursor.execute(query, params)
                 self.connection.commit()

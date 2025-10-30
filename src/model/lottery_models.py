@@ -1,7 +1,7 @@
 # src/model/lottery_models.py
 from datetime import datetime
 from typing import List, Dict, Any, Optional
-
+print("--- 我是 src/model/lottery_models.py 文件，我被成功加载了！ ---")
 class LotteryHistory:
     """历史开奖数据实体类"""
 
@@ -13,7 +13,8 @@ class LotteryHistory:
                  prime_composite_ratio: str = None,
                  consecutive_numbers: List[List[int]] = None,
                  consecutive_count: int = None, tail_numbers: List[int] = None,
-                 data_source: str = None, data_quality: int = None):
+                 data_source: str = None, data_quality: int = None,
+                 created_at: datetime = None):
         self.id = id
         self.period_number = period_number
         self.draw_date = draw_date
@@ -31,34 +32,41 @@ class LotteryHistory:
         self.tail_numbers = tail_numbers
         self.data_source = data_source
         self.data_quality = data_quality
+        self.created_at = created_at
 
 class NumberStatistics:
     """号码统计实体类"""
 
-    def __init__(self, number: int = None, number_type: str = None,
-                 total_appearances: int = None, appearance_rate: float = None,
-                 recent_10_appearances: int = None, recent_20_appearances: int = None,
-                 recent_50_appearances: int = None, current_omission: int = None,
-                 max_omission: int = None, avg_omission: float = None,
-                 heat_status: str = None, heat_score: float = None,
-                 strong_followers: List[int] = None,
-                 strong_precursors: List[int] = None,
-                 position_preference: Dict[str, Any] = None):
-        self.number = number
-        self.number_type = number_type
-        self.total_appearances = total_appearances
-        self.appearance_rate = appearance_rate
-        self.recent_10_appearances = recent_10_appearances
-        self.recent_20_appearances = recent_20_appearances
-        self.recent_50_appearances = recent_50_appearances
-        self.current_omission = current_omission
-        self.max_omission = max_omission
-        self.avg_omission = avg_omission
-        self.heat_status = heat_status
-        self.heat_score = heat_score
-        self.strong_followers = strong_followers if strong_followers else []
-        self.strong_precursors = strong_precursors if strong_precursors else []
-        self.position_preference = position_preference
+    def __init__(self, id: int = None, period_number: str = None, draw_date: str = None,
+                 draw_time: Optional[datetime] = None, front_area: List[int] = None,
+                 back_area: List[int] = None, sum_value: int = None,
+                 span_value: int = None, ac_value: int = None,
+                 odd_even_ratio: str = None, size_ratio: str = None,
+                 prime_composite_ratio: str = None,
+                 consecutive_numbers: List[List[int]] = None,
+                 consecutive_count: int = None, tail_numbers: List[int] = None,
+                 data_source: str = None, data_quality: int = None,
+                 # ↓↓↓ 步骤一：在这里添加 created_at 参数 ↓↓↓
+                 created_at: Optional[datetime] = None):
+        self.id = id
+        self.period_number = period_number
+        self.draw_date = draw_date
+        self.draw_time = draw_time
+        self.front_area = front_area if front_area else []
+        self.back_area = back_area if back_area else []
+        self.sum_value = sum_value
+        self.span_value = span_value
+        self.ac_value = ac_value
+        self.odd_even_ratio = odd_even_ratio
+        self.size_ratio = size_ratio
+        self.prime_composite_ratio = prime_composite_ratio
+        self.consecutive_numbers = consecutive_numbers
+        self.consecutive_count = consecutive_count
+        self.tail_numbers = tail_numbers
+        self.data_source = data_source
+        self.data_quality = data_quality
+        # ↓↓↓ 步骤二：在这里添加对应的属性赋值 ↓↓↓
+        self.created_at = created_at
 
 class AlgorithmConfig:
     """算法配置实体类"""

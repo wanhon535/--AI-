@@ -108,11 +108,18 @@ class DatabaseManager:
         return dao.get_next_period_number()
 
     # AlgorithmRecommendation 相关方法 - 修复返回ID
-    def insert_algorithm_recommendation_root(self, period_number: str, model_name: str,
-                                             confidence_score: float, risk_level: str) -> Optional[int]:
+    def insert_algorithm_recommendation_root(self, period_number: str, algorithm_version: str,
+                                             confidence_score: float, risk_level: str,
+                                             analysis_basis: Optional[str] = None) -> Optional[int]:
         """插入算法推荐根记录，返回插入的ID"""
         dao = self.connection_manager.get_dao(AlgorithmRecommendationDAO)
-        return dao.insert_algorithm_recommendation_root(period_number, model_name, confidence_score, risk_level)
+        return dao.insert_algorithm_recommendation_root(
+            period_number,
+            algorithm_version,
+            confidence_score,
+            risk_level,
+            analysis_basis
+        )
 
     def insert_algorithm_recommendation(self, recommendation: AlgorithmRecommendation) -> Optional[int]:
         """插入算法推荐记录，返回插入的ID"""
