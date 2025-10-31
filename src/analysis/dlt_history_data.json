@@ -1,5 +1,27 @@
 [
     {
+        "openCode": "08,13,24,25,31+04,10",
+        "code": "cjdlt",
+        "expect": "2025123",
+        "name": "超级大乐透",
+        "time": "2025-10-29 21:25:00",
+        "frontArea": [
+            8,
+            13,
+            24,
+            25,
+            31
+        ],
+        "backArea": [
+            4,
+            10
+        ],
+        "frontArea_Sum": 101,
+        "frontArea_OddEven": "3:2",
+        "frontArea_IsConsecutive": true,
+        "frontArea_Span": 23
+    },
+    {
         "openCode": "02,03,06,16,17+04,05",
         "code": "cjdlt",
         "expect": "2025122",

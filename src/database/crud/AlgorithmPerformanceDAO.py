@@ -1,5 +1,5 @@
 # src/database/curd/algorithm_performance_dao.py
-from typing import List, Optional
+from typing import List, Optional, Dict
 import json
 from ..AllDao import AllDAO
 from src.model.lottery_models import AlgorithmPerformance
@@ -7,6 +7,35 @@ from src.model.lottery_models import AlgorithmPerformance
 
 class AlgorithmPerformanceDAO(AllDAO):
     """算法性能数据访问对象"""
+
+    def __init__(self, db_manager):
+        self.db_manager = db_manager
+
+    def insert_algorithm_performance(self, performance_data: Dict):
+        """插入单个算法的预测性能记录"""
+        query = """
+        INSERT INTO algorithm_performance 
+        (algorithm_version, period_number, total_recommendations, total_periods_analyzed, 
+         avg_front_hit_rate, avg_back_hit_rate, confidence_accuracy, 
+         current_weight, performance_trend, created_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+
+        self.db_manager.execute_update(
+            query,
+            (
+                performance_data['algorithm_version'],
+                performance_data.get('period_number', '未知期号'),  # 添加期号
+                performance_data.get('total_recommendations', 0),
+                performance_data.get('total_periods_analyzed', 0),
+                performance_data.get('avg_front_hit_rate', 0.0),
+                performance_data.get('avg_back_hit_rate', 0.0),
+                performance_data.get('confidence_accuracy', 0.0),
+                performance_data.get('current_weight', 0.1),
+                performance_data.get('performance_trend', 'stable'),
+                performance_data.get('created_at', '2024-01-01 00:00:00')
+            )
+        )
 
     def get_algorithm_performance(self, algorithm_version: str = None) -> List[AlgorithmPerformance]:
         """获取算法性能数据"""

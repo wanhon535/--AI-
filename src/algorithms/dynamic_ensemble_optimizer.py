@@ -21,6 +21,52 @@ class DynamicEnsembleOptimizer(BaseAlgorithm):
             'weight_decay_factor': 0.95
         }
 
+    def predict_with_individuals(self, history_data: List[LotteryHistory],
+                                 individual_predictions: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        使用已经计算好的基础算法预测结果，进行动态集成。
+        这是为了优化性能，避免在 RecommendationEngine 中重复计算。
+        """
+        if not self.is_trained:
+            # 即使没有被显式训练，也尝试用默认权重进行预测
+            print("  - [Optimizer] 警告: 模型未标记为已训练，但仍尝试使用当前权重进行预测。")
+
+        # 准备用于投票的数据结构
+        all_predictions_for_voting = {}
+
+        # 遍历传入的、已计算好的预测结果
+        for algo_name, prediction in individual_predictions.items():
+            # 确保这个算法是我们的基础算法之一
+            if algo_name in [a.name for a in self.base_algorithms]:
+
+                # 兼容 prediction 可能是单个推荐字典，也可能是包含 recommendations 列表的完整输出
+                if 'recommendations' in prediction:
+                    recommendations = prediction['recommendations']
+                else:
+                    # 如果只是一个推荐字典，将其包装成列表以兼容投票逻辑
+                    recommendations = [prediction]
+
+                all_predictions_for_voting[algo_name] = {
+                    'predictions': recommendations,
+                    'weight': self.current_weights.get(algo_name, 1.0 / len(self.base_algorithms))
+                }
+
+        # 调用已有的动态集成投票方法
+        final_prediction = self._dynamic_ensemble_voting(all_predictions_for_voting)
+
+        # 构建并返回最终的报告
+        return {
+            'algorithm': self.name,
+            'version': self.version,
+            'individual_predictions': individual_predictions,  # 将原始输入也包含在内，便于追溯
+            'recommendations': [final_prediction],
+            'analysis': {
+                'current_weights': self.current_weights,
+                'algorithms_used': list(all_predictions_for_voting.keys()),
+                'ensemble_method': 'dynamic_weighted_with_precomputed'  # 标记来源
+            }
+        }
+
     def train(self, history_data: List[LotteryHistory]) -> bool:
         """训练集成优化器"""
         if len(history_data) < 30:

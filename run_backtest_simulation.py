@@ -1,183 +1,246 @@
-#!/usr/bin/env python3
-# run_backtest_simulation.py (V2.3 - 修复 get_dao 调用方式)
-
+# run_backtest_simulation.py
+import json
 import os
 import sys
-import csv
-import json
-import time
-import argparse
-import traceback
 from datetime import datetime
-from typing import List, Dict, Any, Optional
 
-# --- 1. 环境设置 ---
+# 环境设置
 project_root = os.path.abspath(os.path.dirname(__file__))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-# <<< 关键修正 1/2 >>>
-# 导入我们需要用到的 DAO 类本身，而不是它的名字字符串
-from src.database.crud.lottery_history_dao import LotteryHistoryDAO
-from src.model.lottery_models import LotteryHistory
 from src.database.database_manager import DatabaseManager
 from src.engine.performance_logger import PerformanceLogger
 
-# --- 2. 配置 (保持不变) ---
-DB_CONFIG = dict(
-    host='localhost', user='root', password='123456789',
-    database='lottery_analysis_system', port=3309
-)
-OUTPUT_DIR = os.path.join(project_root, "outputs")
-DEFAULT_SLEEP_INTERVAL = 0.0
 
 class BacktestRunner:
-    # ... (这个类的其他部分代码保持不变) ...
-    def __init__(self, db_config, sleep_interval=DEFAULT_SLEEP_INTERVAL):
-        self.db = DatabaseManager(**db_config)
-        self.performance_logger: Optional[PerformanceLogger] = None
-        self.summary_rows: List[Dict[str, Any]] = []
-        self.sleep_interval = sleep_interval
-        self._all_model_names = set()
+    def __init__(self, db_config):
+        self.db_config = db_config
+        self.db_manager = None
+        self.performance_logger = None
+
     def connect(self):
-        if not self.db.connect():
-            raise ConnectionError("❌ 无法连接到数据库，请检查配置。")
-        self.performance_logger = PerformanceLogger(db_manager=self.db)
-        print("✅ 数据库连接成功，所有组件已初始化。")
+        """连接数据库"""
+        self.db_manager = DatabaseManager(**self.db_config)
+        if not self.db_manager.connect():
+            raise ConnectionError("数据库连接失败")
+        self.performance_logger = PerformanceLogger(db_manager=self.db_manager)
+        return True
+
     def disconnect(self):
-        if self.db and getattr(self.db, "_connected", False):
-            self.db.disconnect()
-            print("\n🔌 数据库连接已关闭。")
-    def _get_issue_range_from_db(self) -> (Optional[int], Optional[int]):
-        print("🔎 正在自动检测回测区间...")
+        """断开数据库连接"""
+        if self.db_manager:
+            self.db_manager.disconnect()
+
+    def _get_issue_range_from_db(self):
+        """从数据库获取期号范围"""
         query = """
-            SELECT ar.period_number FROM algorithm_recommendation ar
-            INNER JOIN lottery_history lh ON ar.period_number = lh.period_number
-            WHERE ar.analysis_basis IS NOT NULL AND ar.analysis_basis != '' AND ar.analysis_basis != 'null'
-            GROUP BY ar.period_number
+            SELECT MIN(period_number) as start, MAX(period_number) as end 
+            FROM lottery_history 
+            WHERE period_number REGEXP '^[0-9]+$'
         """
-        results = self.db.execute_query(query)
-        if not results: return None, None
-        issues = sorted([int(r['period_number']) for r in results])
-        start, end = issues[0], issues[-1]
-        print(f"➡️  自动检测到有效区间: {start} → {end}")
-        return start, end
-    def _get_model_outputs_for_issue(self, issue: str) -> Dict[str, Any]:
-        query = "SELECT analysis_basis FROM algorithm_recommendation WHERE period_number = %s LIMIT 1"
-        result = self.db.execute_query(query, (issue,))
-        model_outputs = {}
-        if not result or not result[0].get('analysis_basis'): return model_outputs
-        try:
-            raw_data_str = result[0]['analysis_basis']
-            if not raw_data_str or raw_data_str.lower() == 'null': return model_outputs
-            raw_data = json.loads(raw_data_str)
-            if 'dynamic_ensemble_optimizer' in raw_data:
-                 algorithms_data = raw_data['dynamic_ensemble_optimizer'].get('model_outputs', {})
-            else:
-                 algorithms_data = raw_data
-            for model_name, prediction_data in algorithms_data.items():
-                front = prediction_data.get('front_area', {}).get('numbers', [])
-                back = prediction_data.get('back_area', {}).get('numbers', [])
-                confidence = prediction_data.get('confidence', 0.5)
-                if not front or not back: continue
-                model_outputs[model_name] = {"front_numbers": front, "back_numbers": back, "confidence": confidence}
-                self._all_model_names.add(model_name)
-        except (json.JSONDecodeError, TypeError) as e:
-            print(f"  - 🔴 错误: 解析期号 {issue} 的 analysis_basis 字段失败: {e}")
-        return model_outputs
+        result = self.db_manager.execute_query(query)
+        if result and result[0]['start'] and result[0]['end']:
+            return result[0]['start'], result[0]['end']
+        return None, None
 
-    def run(self, start_issue: int, end_issue: int):
-        """执行回测和学习的主循环。"""
-        print(f"\n▶️  开始回测与学习, 区间: {start_issue} → {end_issue}, 共 {end_issue - start_issue + 1} 期")
+    def _get_model_outputs_for_issue(self, issue_str: str):
+        """修复：正确解析analysis_basis字段"""
+        query = """
+            SELECT analysis_basis, algorithm_parameters, model_weights
+            FROM algorithm_recommendation 
+            WHERE period_number = %s AND analysis_basis IS NOT NULL
+        """
+        records = self.db_manager.execute_query(query, (issue_str,))
 
-        # <<< 关键修正 2/2 >>>
-        # 调用 get_dao 时，传递 LotteryHistoryDAO 这个类，而不是 'LotteryHistoryDAO' 字符串
-        history_dao = self.db.get_dao(LotteryHistoryDAO)
+        if not records:
+            print(f"  - ⏸️  跳过: 未找到期号 {issue_str} 的原始算法预测")
+            return None
 
-        for issue in range(start_issue, end_issue + 1):
-            issue_str = str(issue)
+        analysis_basis = records[0]['analysis_basis']
+
+        # 修复：正确处理analysis_basis字段（可能是字符串或字典）
+        if isinstance(analysis_basis, str):
             try:
-                print("\n" + "-" * 70)
-                print(f"🔎 处理期号: {issue_str} ({issue - start_issue + 1}/{end_issue - start_issue + 1})")
-                actual_draw = history_dao.get_by_period(issue_str)
-                if not actual_draw:
-                    print(f"  - ⏸️  跳过: 未找到期号 {issue_str} 的开奖历史。")
+                analysis_basis = json.loads(analysis_basis)
+            except json.JSONDecodeError:
+                print(f"  - ❌ 解析analysis_basis失败，期号: {issue_str}")
+                return None
+
+        if not analysis_basis or not isinstance(analysis_basis, dict):
+            print(f"  - ⏸️  跳过: 期号 {issue_str} 的analysis_basis格式不正确")
+            return None
+
+        # 提取individual_predictions
+        individual_predictions = analysis_basis.get('individual_predictions', {})
+
+        model_outputs = {}
+        for algo_name, prediction in individual_predictions.items():
+            # 确保prediction是字典
+            if isinstance(prediction, str):
+                try:
+                    prediction = json.loads(prediction)
+                except json.JSONDecodeError:
                     continue
+
+            if isinstance(prediction, dict):
+                # 安全地提取号码
+                front_numbers = prediction.get('front_area', [])
+                back_numbers = prediction.get('back_area', [])
+
+                # 如果号码是字符串，转换为列表
+                if isinstance(front_numbers, str):
+                    front_numbers = [int(x.strip()) for x in front_numbers.split(',') if x.strip().isdigit()]
+                if isinstance(back_numbers, str):
+                    back_numbers = [int(x.strip()) for x in back_numbers.split(',') if x.strip().isdigit()]
+
+                model_outputs[algo_name] = {
+                    'front_area': front_numbers,
+                    'back_area': back_numbers
+                }
+
+        return model_outputs if model_outputs else None
+
+    def _get_actual_numbers_for_issue(self, issue_str: str):
+        """获取实际开奖号码"""
+        query = """
+            SELECT front_area_1, front_area_2, front_area_3, front_area_4, front_area_5,
+                   back_area_1, back_area_2
+            FROM lottery_history 
+            WHERE period_number = %s
+        """
+        records = self.db_manager.execute_query(query, (issue_str,))
+
+        if not records:
+            return None, None
+
+        record = records[0]
+        front_actual = [
+            record['front_area_1'], record['front_area_2'], record['front_area_3'],
+            record['front_area_4'], record['front_area_5']
+        ]
+        back_actual = [record['back_area_1'], record['back_area_2']]
+
+        return front_actual, back_actual
+
+    def _calculate_hit_score(self, predicted_front, predicted_back, actual_front, actual_back):
+        """计算命中分数"""
+        front_hits = len(set(predicted_front) & set(actual_front))
+        back_hits = len(set(predicted_back) & set(actual_back))
+
+        # 简单的命中评分算法
+        score = (front_hits * 2) + (back_hits * 3)  # 后区命中权重更高
+        return score, front_hits, back_hits
+
+    def run(self, start_issue, end_issue):
+        """运行回测"""
+        print(f"开始回测与学习, 区间: {start_issue} → {end_issue}")
+
+        # 获取期号列表
+        query = """
+            SELECT period_number FROM lottery_history 
+            WHERE period_number BETWEEN %s AND %s 
+            AND period_number REGEXP '^[0-9]+$'
+            ORDER BY period_number
+        """
+        issues = self.db_manager.execute_query(query, (start_issue, end_issue))
+
+        if not issues:
+            print("❌ 未找到指定区间的期号数据")
+            return
+
+        total_issues = len(issues)
+        print(f"共 {total_issues} 期")
+
+        processed_count = 0
+        skipped_count = 0
+        error_count = 0
+
+        for i, issue_record in enumerate(issues, 1):
+            issue_str = issue_record['period_number']
+            print(f"\n{'=' * 60}")
+            print(f"🔎 处理期号: {issue_str} ({i}/{total_issues})")
+
+            try:
+                # 1. 获取模型输出
                 model_outputs = self._get_model_outputs_for_issue(issue_str)
                 if not model_outputs:
-                    print(f"  - ⏸️  跳过: 未找到期号 {issue_str} 的原始算法预测 (analysis_basis 字段为空或解析失败)。")
+                    skipped_count += 1
                     continue
-                print(f"  - 🧠 找到 {len(model_outputs)} 个算法预测，正在调用 PerformanceLogger 进行评估和学习...")
-                eval_report = self.performance_logger.evaluate_and_update(
-                    issue=issue_str,
-                    model_outputs=model_outputs,
-                    actual_draw=actual_draw
-                )
-                print(f"  - ✅ PerformanceLogger 处理完毕。返回的命中率报告: {eval_report}")
-                if eval_report:
-                    row = {'issue': issue_str, 'num_models': len(model_outputs)}
-                    scores = list(eval_report.values())
-                    best_model = max(eval_report, key=eval_report.get) if eval_report else "N/A"
-                    row.update({
-                        'avg_hit_rate': sum(scores) / len(scores) if scores else 0.0,
-                        'best_model_by_hit_rate': best_model,
-                        'best_hit_rate': eval_report.get(best_model, 0.0),
-                        **{f"hit_rate_{model}": rate for model, rate in eval_report.items()}
-                    })
-                    self.summary_rows.append(row)
-                if self.sleep_interval > 0:
-                    time.sleep(self.sleep_interval)
-            except KeyboardInterrupt:
-                print("\n⛔ 用户中断。正在停止并导出已有结果...")
-                break
+
+                # 2. 获取实际开奖号码
+                actual_front, actual_back = self._get_actual_numbers_for_issue(issue_str)
+                if not actual_front or not actual_back:
+                    print(f"  - ⏸️  跳过: 未找到期号 {issue_str} 的实际开奖数据")
+                    skipped_count += 1
+                    continue
+
+                # 3. 为每个算法计算命中率并更新性能
+                for algo_name, prediction in model_outputs.items():
+                    predicted_front = prediction.get('front_area', [])
+                    predicted_back = prediction.get('back_area', [])
+
+                    if not predicted_front or not predicted_back:
+                        continue
+
+                    hit_score, front_hits, back_hits = self._calculate_hit_score(
+                        predicted_front, predicted_back, actual_front, actual_back
+                    )
+
+                    # 4. 更新算法性能
+                    try:
+                        # 修复：使用正确的DAO方法
+                        performance_data = {
+                            'algorithm_version': f"{algo_name}_1.0",
+                            'period_number': issue_str,
+                            'predictions': json.dumps(prediction, ensure_ascii=False),
+                            'confidence_score': 0.5,  # 默认置信度
+                            'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        }
+
+                        # 使用performance_logger的dao来插入
+                        self.performance_logger.dao.insert_algorithm_performance(performance_data)
+                        print(f"  - ✅ {algo_name}: 前区命中 {front_hits}/5, 后区命中 {back_hits}/2, 分数: {hit_score}")
+
+                    except Exception as e:
+                        print(f"  - ❌ 更新{algo_name}性能失败: {e}")
+                        error_count += 1
+
+                processed_count += 1
+
             except Exception as e:
                 print(f"❌ 处理期号 {issue_str} 时发生严重错误: {e}")
+                import traceback
                 traceback.print_exc()
-        self._export_summary_csv()
-        print("\n✅ 回测学习任务完成。`algorithm_performance` 表已由 PerformanceLogger 更新！")
+                error_count += 1
 
-    def _export_summary_csv(self):
-        if not self.summary_rows:
-            print("（无回测摘要可导出）")
-            return
-        os.makedirs(OUTPUT_DIR, exist_ok=True)
-        filename = f"backtest_summary_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-        filepath = os.path.join(OUTPUT_DIR, filename)
-        fieldnames = ['issue', 'num_models', 'avg_hit_rate', 'best_model_by_hit_rate', 'best_hit_rate']
-        score_fields = sorted([f"hit_rate_{name}" for name in self._all_model_names])
-        fieldnames.extend(score_fields)
-        with open(filepath, "w", encoding="utf-8-sig", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames, restval='N/A')
-            writer.writeheader()
-            writer.writerows(self.summary_rows)
-        print(f"📁 回测摘要已成功导出到: {filepath}")
+        # 输出总结
+        print(f"\n{'=' * 60}")
+        print("📊 回测总结:")
+        print(f"  - 总期数: {total_issues}")
+        print(f"  - 成功处理: {processed_count}")
+        print(f"  - 跳过: {skipped_count}")
+        print(f"  - 错误: {error_count}")
 
-# --- main 函数部分保持不变 ---
-def parse_args():
-    p = argparse.ArgumentParser(description="回测与学习引擎：驱动 PerformanceLogger 评估历史预测，更新数据库中的性能与权重。")
-    p.add_argument("--start", type=int, help="开始期号")
-    p.add_argument("--end", type=int, help="结束期号")
-    p.add_argument("--auto", action="store_true", help="自动检测数据库中所有可评估的期号范围。")
-    return p.parse_args()
-def main():
-    args = parse_args()
+        if processed_count > 0:
+            print("✅ 回测学习任务完成。`algorithm_performance` 表已更新！")
+        else:
+            print("⚠️  没有成功处理任何期号，请检查数据完整性")
+
+
+if __name__ == "__main__":
+    DB_CONFIG = dict(
+        host='localhost', user='root', password='123456789',
+        database='lottery_analysis_system', port=3309
+    )
+
     runner = BacktestRunner(DB_CONFIG)
     try:
         runner.connect()
-        start, end = (None, None)
-        if args.auto:
-            start, end = runner._get_issue_range_from_db()
+        start, end = runner._get_issue_range_from_db()
+        if start and end:
+            runner.run(start, end)
         else:
-            start, end = args.start, args.end
-        if not start or not end:
-            print("❌ 错误: 无法确定回测区间。请确保 `algorithm_recommendation` 表中有带 `analysis_basis` 的记录，且 `lottery_history` 中有对应开奖数据。")
-            return
-        runner.run(start_issue=start, end_issue=end)
-    except Exception as e:
-        print(f"\n❌ 任务失败: {e}")
-        traceback.print_exc()
+            print("❌ 无法获取期号范围")
     finally:
         runner.disconnect()
-
-if __name__ == "__main__":
-    main()
