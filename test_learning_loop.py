@@ -1,134 +1,96 @@
-# test_learning_loop.py
-
 import os
 import sys
-import random
 
-# --- 1. 项目环境设置 ---
+# --- 环境设置 ---
 project_root = os.path.abspath(os.path.dirname(__file__))
-sys.path.insert(0, project_root)
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
-# --- 2. 导入所有需要的模块 ---
-from src.model.lottery_models import LotteryHistory
-from src.engine.performance_logger import PerformanceLogger
-from src.algorithms.dynamic_ensemble_optimizer import DynamicEnsembleOptimizer
 from src.database.database_manager import DatabaseManager
-from src.engine.adaptive_weight_updater import AdaptiveWeightUpdater
-from src.database.crud.algorithm_performance_dao import AlgorithmPerformanceDAO
-# 导入基础算法用于测试
-from src.algorithms.statistical_algorithms import FrequencyAnalysisAlgorithm
-from src.algorithms.advanced_algorithms.bayesian_number_predictor import BayesianNumberPredictor
+from src.config.database_config import DB_CONFIG
+from src.algorithms import AVAILABLE_ALGORITHMS
+# 导入您的数据模型，以便我们检查类型
+from src.model.lottery_models import LotteryHistory
 
 
-# --- 3. 模拟一个数据库 (关键！)**
-# 我们创建一个假的 DAO 类，它把数据存在内存里，而不是真实数据库里
-class MockAlgorithmPerformanceDAO:
-    def __init__(self, db_manager: DatabaseManager = None, dao=None, smoothing_alpha: float = 0.6,
-                 hist_window: int = 5):
-        """
-        :param db_manager: 传入一个已经配置好的 DatabaseManager 实例 (for production).
-        :param dao: 可选。传入一个DAO实例 (for testing).
-        :param smoothing_alpha: 平滑系数。
-        :param hist_window: 历史窗口大小。
-        """
-        if dao:
-            # Test mode: use the provided mock dao
-            self.dao = dao
-            print("[PerformanceLogger] Initialized in TEST mode with a mock DAO.")
-        elif db_manager:
-            # Production mode: create a real DAO using the db_manager
-            self.dao = AlgorithmPerformanceDAO(db_manager)
-            print("[PerformanceLogger] Initialized in PRODUCTION mode with a real DAO.")
-        else:
-            raise ValueError("PerformanceLogger requires either a 'db_manager' or a 'dao' instance.")
+def test_data_pipeline_and_algorithms():
+    """
+    深度侦查版测试：
+    1. 验证从数据库出来的数据是否符合预期。
+    2. 验证算法是否收到了正确的数据并进行了正确的计算。
+    """
+    print("\n" + "#" * 70 + "\n###      🕵️  启动【深度数据链路侦查】测试      ###\n" + "#" * 70)
 
-        self.updater = AdaptiveWeightUpdater(alpha=smoothing_alpha)
-        self.hist_window = hist_window
+    # --- 步骤 1: 检查数据库连接和数据获取 ---
+    print("\n--- [侦查步骤 1/3] 正在连接数据库并提取原始证据... ---")
+    db_manager = DatabaseManager(**DB_CONFIG)
+    assert db_manager.connect(), "数据库连接失败，测试终止。"
 
-    def get_average_scores_last_n_issues(self, n_issues: int = 3) -> dict:
-        # 从内存中计算平均分
-        latest_issues = sorted(list(set(d['issue'] for d in self.db)), reverse=True)[:n_issues]
-        if not latest_issues:
-            print(" MOCK_DB: No historical scores found.")
-            return {}
+    history_data = db_manager.get_latest_lottery_history(limit=50)
+    assert len(history_data) >= 20, f"历史数据不足20期 (实际获取到 {len(history_data)} 条)，无法进行有效测试。"
 
-        scores = {}
-        for issue in latest_issues:
-            for record in self.db:
-                if record['issue'] == issue:
-                    scores.setdefault(record['algorithm'], []).append(record['score'])
+    print(f"✅ 成功从数据库获取 {len(history_data)} 条记录。")
 
-        avg_scores = {algo: sum(s_list) / len(s_list) for algo, s_list in scores.items()}
-        print(f" MOCK_DB: Calculated average scores from last {len(latest_issues)} issues: {avg_scores}")
-        return avg_scores
+    # --- 步骤 2: 深入检查数据样本的“物证” ---
+    print("\n--- [侦查步骤 2/3] 正在检验数据样本的结构与类型... ---")
+    # 随机抽取一条记录进行详细检查
+    sample_record = history_data[0]
 
+    print(f"  - 样本记录期号: {sample_record.period_number}")
+    print(f"  - 样本记录完整内容: {sample_record}")
 
-def run_unit_test():
-    print("\n" + "=" * 60)
-    print("🚀  STARTING UNIT TEST FOR THE SELF-LEARNING LOOP")
-    print("=" * 60)
+    # 这是最关键的检查点！
+    assert isinstance(sample_record, LotteryHistory), f"数据记录不是 LotteryHistory 对象，而是 {type(sample_record)}！"
+    print(f"  - ✅ [关键证据] 数据类型为 LotteryHistory 对象，检查通过。")
 
-    # --- 1. 准备模拟环境 ---
-    # 使用假的数据库DAO
-    mock_dao = MockAlgorithmPerformanceDAO()
+    assert isinstance(sample_record.front_area,
+                      list), f"front_area 不是列表(list)，而是 {type(sample_record.front_area)}！"
+    print(f"  - ✅ [关键证据] front_area 属性是列表类型，检查通过。")
 
-    # vvvvvvvvvvv  这是关键的修正！ vvvvvvvvvvv
-    # 在创建PerformanceLogger时，直接把假的dao“注入”进去！
-    # 这样它就不会再去创建真实的、需要连接数据库的DAO了。
-    performance_logger = PerformanceLogger(dao=mock_dao)
-    # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    assert len(sample_record.front_area) == 5, f"front_area 列表长度不为5 (实际为 {len(sample_record.front_area)})！"
+    print(f"  - ✅ [关键证据] front_area 列表长度为5，检查通过。")
 
-    # ... (测试脚本的其余部分完全保持不变) ...
+    assert isinstance(sample_record.front_area[0],
+                      int), f"front_area 列表中的元素不是整数(int)，而是 {type(sample_record.front_area[0])}！"
+    print(f"  - ✅ [关键证据] front_area 列表元素为整数，检查通过。")
+    print(f"  - 结论: 数据从数据库到Python对象的转换链路【看起来】是正常的。")
 
-    # 准备一点历史数据
-    history_data = [
-        LotteryHistory(period_number=str(2025001 + i),
-                       front_area=random.sample(range(1, 36), 5),
-                       back_area=random.sample(range(1, 13), 2))
-        for i in range(50)
-    ]
-    base_algorithms = [FrequencyAnalysisAlgorithm(), BayesianNumberPredictor()]
+    # --- 步骤 3: 逐一“审问”算法，看它们如何处理证据 ---
+    print("\n--- [侦查步骤 3/3] 正在逐一审问算法的处理逻辑... ---")
+    for name, AlgoClass in AVAILABLE_ALGORITHMS.items():
+        if name == "DynamicEnsembleOptimizer":
+            continue
 
-    # ==========================================================
-    # --- 2. 模拟第一次预测 (冷启动) ---
-    print("\n--- LOOP 1: Cold Start Prediction ---")
-    weights_loop1 = mock_dao.get_average_scores_last_n_issues()
-    optimizer_loop1 = DynamicEnsembleOptimizer(base_algorithms)
-    optimizer_loop1.current_weights = weights_loop1
-    optimizer_loop1.train(history_data)
-    report_loop1 = optimizer_loop1.predict(history_data)
-    print(f"\n[LOOP 1] Optimizer used weights: {optimizer_loop1.current_weights}")
-    print(f"[LOOP 1] Final recommendation generated (front): {report_loop1['recommendations'][0]['front_numbers']}")
+        print("\n" + "-" * 60)
+        print(f"🔬 正在审问算法: {name}")
 
-    # ==========================================================
-    # --- 3. 模拟开奖，并进行学习 ---
-    print("\n--- POST-LOOP 1: Learning from Results ---")
-    actual_draw_loop1 = LotteryHistory(period_number="2025051", front_area=[1, 2, 3, 4, 5], back_area=[1, 2])
-    mock_model_outputs_loop1 = {
-        'frequency_analysis': {'recommendations': [{'front_numbers': [3, 4, 5, 6, 7]}]},
-        'bayesian_number_predictor': {'recommendations': [{'front_numbers': [10, 11, 12, 13, 14]}]}
-    }
-    performance_logger.evaluate_and_update(
-        issue="2025051",
-        model_outputs=mock_model_outputs_loop1,
-        actual_draw=actual_draw_loop1
-    )
+        try:
+            algorithm = AlgoClass()
 
-    # ==========================================================
-    # --- 4. 模拟第二次预测 (热启动) ---
-    print("\n--- LOOP 2: Hot Start Prediction (with learned weights) ---")
-    weights_loop2 = mock_dao.get_average_scores_last_n_issues()
-    optimizer_loop2 = DynamicEnsembleOptimizer(base_algorithms)
-    optimizer_loop2.current_weights = weights_loop2
-    optimizer_loop2.train(history_data)
-    report_loop2 = optimizer_loop2.predict(history_data)
-    print(f"\n[LOOP 2] Optimizer started with LEARNED weights: {weights_loop2}")
-    print(f"[LOOP 2] Final recommendation generated (front): {report_loop2['recommendations'][0]['front_numbers']}")
+            # --- 在 train 方法内部进行侦查 ---
+            # 我们将在这里模拟 train 方法的第一步，以检查数据处理
+            print(f"  - [审问] 正在检查 {name} 的数据处理过程...")
+            front_numbers_collected = [num for record in history_data for num in record.front_area]
+            print(f"  - [内部证据] 算法收集到的前区号码总数: {len(front_numbers_collected)}")
+            print(f"  - [内部证据] 收集到的号码样本 (前20个): {front_numbers_collected[:20]}")
 
-    print("\n" + "=" * 60)
-    print("🏁  UNIT TEST COMPLETE")
-    print("=" * 60)
+            from collections import Counter
+            counts = Counter(front_numbers_collected)
+            print(f"  - [内部证据] 频率统计结果 (Top 5): {counts.most_common(5)}")
 
+            # 正常执行
+            algorithm.train(history_data)
+            result = algorithm.predict(history_data)
 
-if __name__ == "__main__":
-    run_unit_test()
+            # 检查输出
+            assert 'recommendations' in result, f"[{name}] 缺少 'recommendations' 键！"
+            rec = result['recommendations'][0]
+            front_scores = rec['front_number_scores']
+
+            print(f"  - ✅ 算法输出了正确的数据结构。")
+
+            top_front = front_scores[0]
+            print(f"  - 🧠 最终结论: 最高分的前区号码是 {top_front['number']} (得分: {top_front['score']:.4f})")
+
+        except Exception as e:
+            assert False, f"{name} 算法在审问过程中失败: {e}"

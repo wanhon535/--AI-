@@ -1,16 +1,23 @@
-# algorithms/base_algorithm.py
+# ======================================================================
+# --- FILE: src/algorithms/base_algorithm.py (COMPLETE REPLACEMENT V2) ---
+# ======================================================================
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any
 from src.model.lottery_models import LotteryHistory
 
 class BaseAlgorithm(ABC):
-    """算法基类"""
+    """
+    算法基类 V2
+    - 改进: __init__不再需要参数，name 和 version 作为类属性定义。
+      这解决了工作流中无法传递参数进行实例化的问题。
+    """
+    name: str = "BaseAlgorithm"
+    version: str = "0.0"
 
-    def __init__(self, name: str, version: str):
-        self.name = name
-        self.version = version
-        self.parameters = {}
-        self.is_trained = False
+    def __init__(self):
+        """构造函数不再需要参数。"""
+        self.parameters: Dict[str, Any] = {}
+        self.is_trained: bool = False
 
     @abstractmethod
     def train(self, history_data: List[LotteryHistory]) -> bool:

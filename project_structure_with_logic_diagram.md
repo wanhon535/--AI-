@@ -1,38 +1,39 @@
 # 项目目录结构（带层级标注和注释）
 
 ```
-E:/pyhton/AI/AICp/
+G:\wanhong\cp\--AI-/
 ├── 1. 根目录层级
 │   ├── .git/                          # Git版本控制目录
 │   ├── .idea/                         # PyCharm IDE配置目录
 │   ├── .venv/                         # Python虚拟环境目录
+│   ├── .venv1/                        # Python虚拟环境目录(备用)
 │   ├── LICENSE                        # 项目许可证文件
 │   ├── README.md                      # 项目说明文档
 │   ├── __init__.py                    # Python包初始化文件
-│   ├── __pycache__/                   # Python编译缓存目录
 │   ├── app.py                         # 应用主程序入口文件
 │   ├── main.py                        # 主程序文件
 │   ├── project_structure_with_comments.md  # 项目结构说明文档
+│   ├── project_structure_updated.md   # 更新后的项目结构说明文档
 │   ├── requirements.txt               # 项目依赖包列表
 │   ├── run_backtest_simulation.py     # 回测模拟运行脚本
 │   ├── simulation_controller.py        # 模拟控制器
-│   ├── test_learning_loop.py          # 测试学习循环
-│   └── outputs/                       # 输出目录
-│       ├── backtest_summary_*.csv     # 回测结果文件
+│   └── test_learning_loop.py          # 测试学习循环
 │
 ├── 2. 页面层 (pages/)
 │   ├── Analysis.py                    # 分析页面 - 提供彩票数据分析功能
+│   ├── Backtest_Analysis.py           # 回测分析页面 - 显示算法回测结果
 │   ├── Betting.py                     # 投注页面 - 用户投注操作界面
 │   ├── History.py                     # 历史数据页面 - 展示历史开奖数据
 │   ├── Home.py                        # 主页 - 应用程序主页
 │   ├── Login.py                       # 登录页面 - 用户登录界面
-│   ├── Recommendations.py              # 推荐页面 - 展示号码推荐结果
+│   ├── Recommendations.py             # 推荐页面 - 展示号码推荐结果
 │   ├── Register.py                    # 注册页面 - 用户注册界面
-│   ├── _Dashboard.py                  # 主仪表板页面 - 应用核心仪表板
-│   └── __pycache__/                   # Python编译缓存目录
+│   └── _Dashboard.py                  # 主仪表板页面 - 应用核心仪表板
 │
 ├── 3. 脚本层 (scripts/)
-│   └── generate_backtest_data.py      # 生成回测数据脚本
+│   ├── evaluate_and_learn.py          # 评估和学习脚本 - 算法评估和自动学习
+│   ├── generate_backtest_data.py      # 生成回测数据脚本
+│   └── initialize_configs.py          # 初始化配置脚本
 │
 ├── 4. 源代码层 (src/)
 │   ├── 4.1 算法模块 (algorithms/)
@@ -60,8 +61,7 @@ E:/pyhton/AI/AICp/
 │   │   ├── dlt_history_data.json              # 大乐透历史数据JSON文件 - 存储历史开奖数据
 │   │   ├── import_from_json.py                # JSON导入工具 - 从JSON文件导入数据
 │   │   ├── manager.py                         # 分析管理器 - 管理数据分析流程
-│   │   ├── performance_analyzer.py            # 性能分析器 - 分析算法性能指标
-│   │   └── 大乐透历史开奖数据.md              # 大乐透历史开奖数据文档 - 历史开奖数据说明
+│   │   └── performance_analyzer.py            # 性能分析器 - 分析算法性能指标
 │   │
 │   ├── 4.3 认证模块 (auth/)
 │   │   └── auth_utils.py                      # 认证工具函数 - 提供用户认证相关功能
@@ -84,11 +84,12 @@ E:/pyhton/AI/AICp/
 │   │   │   ├── add.py                         # 添加数据操作 - 数据插入功能
 │   │   │   ├── algorithm_performance_dao.py   # 算法性能DAO - 算法性能数据访问
 │   │   │   ├── algorithm_recommendation_dao.py # 算法推荐DAO - 算法推荐数据访问
+│   │   │   ├── dlt_history_data.json          # 大乐透历史数据JSON文件 - 存储历史开奖数据
 │   │   │   ├── instead.py                     # 替换数据操作 - 数据更新功能
 │   │   │   ├── lottery_history_dao.py         # 彩票历史DAO - 彩票历史数据访问对象
 │   │   │   ├── model_training_log_dao.py      # 模型训练日志DAO - 模型训练日志数据访问
 │   │   │   ├── personal_betting_dao.py        # 个人投注DAO - 个人投注数据访问对象
-│   │   │   ├── prediction.py                   # 预测数据操作 - 预测结果数据处理
+│   │   │   ├── prediction.py                  # 预测数据操作 - 预测结果数据处理
 │   │   │   ├── recommendation_details_dao.py  # 推荐详情DAO - 推荐详情数据访问对象
 │   │   │   └── user_purchase_dao.py           # 用户购买DAO - 用户购买数据访问对象
 │   │   ├── AllDao.py                          # 所有DAO集合 - 汇总所有数据访问对象
@@ -97,18 +98,25 @@ E:/pyhton/AI/AICp/
 │   │
 │   ├── 4.7 引擎模块 (engine/)
 │   │   ├── adaptive_weight_updater.py         # 自适应权重更新器 - 动态更新算法权重
+│   │   ├── algorithm_factory.py               # 算法工厂 - 创建和管理算法实例
 │   │   ├── algorithm_runner.py                # 算法运行器 - 执行各种预测算法
+│   │   ├── evaluation_service.py              # 评估服务 - 算法效果评估服务
 │   │   ├── evaluation_system.py               # 评估系统 - 评估算法和推荐结果
 │   │   ├── performance_logger.py              # 性能记录器 - 记录算法性能指标
-│   │   └── recommendation_engine.py           # 推荐引擎 - 生成号码推荐结果
+│   │   ├── recommendation_engine.py           # 推荐引擎 - 生成号码推荐结果
+│   │   ├── scheduler.py                       # 调度器 - 任务调度管理
+│   │   ├── system_orchestrator.py             # 系统协调器 - 协调各模块运行
+│   │   └── workflow/tasks.py                  # 工作流任务 - 系统工作流任务定义
 │   │
 │   ├── 4.8 大语言模型模块 (llm/)
+│   │   ├── bash.py                            # Bash命令执行相关 - 执行bash命令
 │   │   ├── clients/                           # 各种LLM客户端实现
 │   │   │   ├── ai_caller.py                   # AI调用接口文件 - 统一调用各类AI模型
 │   │   │   ├── ai_callerv_1.0.py              # AI调用接口v1.0版本 - 旧版本AI调用接口
+│   │   │   ├── deepseek.py                    # DeepSeek客户端 - DeepSeek模型客户端
 │   │   │   ├── gemini.py                      # Gemini客户端 - Google Gemini模型客户端
-│   │   │   └── openai_compatible.py           # OpenAI兼容客户端 - 兼容OpenAI接口的客户端
-│   │   ├── bash.py                            # Bash命令执行相关 - 执行bash命令
+│   │   │   ├── openai_compatible.py           # OpenAI兼容客户端 - 兼容OpenAI接口的客户端
+│   │   │   └── qwen.py                        # 通义千问客户端 - 阿里通义千问模型客户端
 │   │   └── config.py                          # LLM配置文件 - 大语言模型配置
 │   │
 │   ├── 4.9 模型模块 (model/)
@@ -120,9 +128,13 @@ E:/pyhton/AI/AICp/
 │   │   ├── 1.py                               # UI组件文件 - UI界面组件实现
 │   │   └── style_utils.py                     # 样式工具函数 - UI样式相关工具函数
 │   │
-│   ├── 4.11 SQL脚本目录 (sql/)
+│   ├── 4.11 工具模块 (utils/)
+│   │   └── logger.py                          # 日志工具 - 系统日志记录功能
+│   │
+│   ├── 4.12 SQL脚本目录 (sql/)
 │   │   └── lottery_analysis_system.sql        # 彩票分析系统数据库脚本 - 数据库表结构定义
 │   │
+│   ├── img.png                                # 图片文件
 │   ├── prompt_templates.py                    # 提示模板文件 - AI提示词模板
 │   ├── prompt_templates_max.py                # 最大提示模板文件 - 复杂任务提示词模板
 │   ├── prompt_templates_plas.py               # PLAS提示模板文件 - PLAS系统提示词模板
@@ -174,5 +186,97 @@ E:/pyhton/AI/AICp/
 #### 4.10 UI组件模块 (ui/)
 用户界面相关组件和样式工具。
 
-#### 4.11 SQL脚本目录 (sql/)
+#### 4.11 工具模块 (utils/)
+通用工具函数。
+
+#### 4.12 SQL脚本目录 (sql/)
 数据库脚本文件。
+
+## 系统架构逻辑图
+
+```mermaid
+graph TB
+    A[用户界面层] --> B[应用入口层]
+    B --> C[系统协调器]
+    
+    C --> D[推荐引擎]
+    C --> E[算法运行器]
+    C --> F[评估系统]
+    
+    D --> G[算法工厂]
+    E --> G
+    F --> G
+    
+    G --> H[算法模块]
+    H --> H1[基础算法]
+    H --> H2[高级算法]
+    
+    C --> I[数据库模块]
+    I --> J[DAO层]
+    J --> K[(MySQL数据库)]
+    
+    C --> L[分析模块]
+    L --> M[性能分析器]
+    L --> N[数据导入器]
+    
+    C --> O[大语言模型模块]
+    O --> P[AI客户端]
+    
+    C --> Q[配置模块]
+    Q --> R[系统配置]
+    Q --> S[数据库配置]
+    
+    F --> T[性能记录器]
+    T --> I
+    
+    subgraph 用户界面层
+        A
+    end
+    
+    subgraph 核心业务层
+        C
+        D
+        E
+        F
+    end
+    
+    subgraph 算法与模型层
+        G
+        H
+    end
+    
+    subgraph 数据持久化层
+        I
+        J
+        K
+    end
+    
+    subgraph 辅助功能层
+        L
+        O
+        Q
+    end
+```
+
+## 数据流向说明
+
+1. **用户交互流程**：
+   - 用户通过页面层(pages/)与系统交互
+   - 页面调用应用入口(app.py/main.py)启动业务流程
+   - 系统协调器(engine/system_orchestrator.py)统筹调度各项任务
+
+2. **核心算法流程**：
+   - 算法工厂(algorithm_factory.py)创建所需算法实例
+   - 算法运行器(algorithm_runner.py)执行具体算法
+   - 推荐引擎(recommendation_engine.py)整合算法输出生成推荐
+   - 评估系统(evaluation_system.py)对推荐结果进行评估
+
+3. **数据处理流程**：
+   - 数据库模块(database/)通过DAO层访问MySQL数据库
+   - 分析模块(analysis/)进行数据分析和性能评估
+   - 配置模块(config/)管理系统和数据库配置
+
+4. **智能增强流程**：
+   - 大语言模型模块(llm/)提供AI能力支持
+   - 实时反馈学习器(real_time_feedback_learner.py)根据新数据优化模型
+   - 性能记录器(performance_logger.py)记录并追踪算法性能变化

@@ -18,3 +18,13 @@ class DatabaseConfig:
             'database': cls.DATABASE,
             'charset': cls.CHARSET
         }
+
+DB_CONFIG = {
+    'host': 'localhost',
+    'user': 'root',
+    'password': '123456789',
+    'database': 'lottery_analysis_system',
+    'port': 3309
+    # 如果您的 DatabaseManager 支持 charset，可以加上
+    # 'charset': 'utf8mb4'
+}

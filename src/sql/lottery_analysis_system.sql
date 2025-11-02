@@ -840,12 +840,77 @@ INSERT INTO `users` VALUES (2, 'wanhong', '1806755934@qq.com', '8d969eef6ecad3c2
 -- View structure for algorithm_performance_view
 -- ----------------------------
 DROP VIEW IF EXISTS `algorithm_performance_view`;
-CREATE ALGORITHM = UNDEFINED SQL SECURITY DEFINER VIEW `algorithm_performance_view` AS select `ap`.`algorithm_version` AS `algorithm_version`,`ap`.`total_recommendations` AS `total_recommendations`,`ap`.`avg_front_hit_rate` AS `avg_front_hit_rate`,`ap`.`avg_back_hit_rate` AS `avg_back_hit_rate`,`ap`.`confidence_accuracy` AS `confidence_accuracy`,`ap`.`stability_score` AS `stability_score`,`ap`.`performance_trend` AS `performance_trend`,count(`rpr`.`id`) AS `recent_evaluations`,avg(`rpr`.`performance_rating`) AS `recent_rating` from (`algorithm_performance` `ap` left join `reward_penalty_records` `rpr` on(((`ap`.`algorithm_version` = `rpr`.`algorithm_version`) and (`rpr`.`evaluation_time` >= (now() - interval 30 day))))) group by `ap`.`algorithm_version`;
 
+CREATE ALGORITHM = UNDEFINED
+DEFINER = CURRENT_USER() -- 修复：添加 DEFINER
+SQL SECURITY DEFINER
+VIEW `algorithm_performance_view` AS
+select
+    `ap`.`algorithm_version` AS `algorithm_version`,
+    -- 修正：用 COUNT(ap.id) 替换不存在的 total_recommendations
+    count(`ap`.`id`) AS `total_recommendations`,
+    -- 修正：用 avg(ap.hit_rate) 替换 avg_front_hit_rate
+    avg(`ap`.`hit_rate`) AS `avg_hit_rate`,
+    NULL AS `avg_back_hit_rate`, -- 缺失列，用 NULL 占位
+    -- 修正：用 avg(ap.confidence_score) 替换 confidence_accuracy
+    avg(`ap`.`confidence_score`) AS `confidence_accuracy`,
+    -- 修正：用 avg(ap.score) 替换 stability_score
+    avg(`ap`.`score`) AS `stability_score`,
+    NULL AS `performance_trend`, -- 缺失列，用 NULL 占位
+    count(`rpr`.`id`) AS `recent_evaluations`,
+    avg(`rpr`.`performance_rating`) AS `recent_rating`
+from
+    `algorithm_performance` `ap`
+left join
+    `reward_penalty_records` `rpr`
+    on
+    (
+        -- 核心修正：添加 COLLATE 解决 1267 错误
+        (`ap`.`algorithm_version` COLLATE utf8mb4_unicode_ci = `rpr`.`algorithm_version` COLLATE utf8mb4_unicode_ci)
+        and
+        (`rpr`.`evaluation_time` >= (now() - interval 30 day))
+    )
+group by
+    `ap`.`algorithm_version`;
+-- ----------------------------
+-- View structure for comprehensive_analysis_view
+-- ----------------------------
 -- ----------------------------
 -- View structure for comprehensive_analysis_view
 -- ----------------------------
 DROP VIEW IF EXISTS `comprehensive_analysis_view`;
-CREATE ALGORITHM = UNDEFINED SQL SECURITY DEFINER VIEW `comprehensive_analysis_view` AS select `lh`.`period_number` AS `period_number`,`lh`.`draw_date` AS `draw_date`,`lh`.`front_area_1` AS `front_area_1`,`lh`.`sum_value` AS `sum_value`,`lh`.`odd_even_ratio` AS `odd_even_ratio`,`lh`.`size_ratio` AS `size_ratio`,`ar`.`algorithm_version` AS `algorithm_version`,`ar`.`confidence_score` AS `confidence_score`,`ar`.`risk_level` AS `risk_level`,`rpr`.`front_hit_count` AS `front_hit_count`,`rpr`.`back_hit_count` AS `back_hit_count`,`rpr`.`hit_score` AS `hit_score`,`rpr`.`performance_rating` AS `performance_rating`,`upr`.`purchase_type` AS `purchased_type`,`upr`.`front_hit_count` AS `purchased_front_hit`,`upr`.`back_hit_count` AS `purchased_back_hit`,`upr`.`winnings_amount` AS `purchased_winnings` from (((`lottery_history` `lh` left join `algorithm_recommendation` `ar` on((`lh`.`period_number` = `ar`.`period_number`))) left join `reward_penalty_records` `rpr` on((`ar`.`id` = `rpr`.`recommendation_id`))) left join `user_purchase_records` `upr` on((`ar`.`id` = `upr`.`period_metadata_id`)));
 
+CREATE ALGORITHM = UNDEFINED
+DEFINER = CURRENT_USER() -- 修复：添加 DEFINER
+SQL SECURITY DEFINER
+VIEW `comprehensive_analysis_view` AS
+select
+    `lh`.`period_number` AS `period_number`,
+    `lh`.`draw_date` AS `draw_date`,
+    `lh`.`front_area_1` AS `front_area_1`,
+    `lh`.`sum_value` AS `sum_value`,
+    `lh`.`odd_even_ratio` AS `odd_even_ratio`,
+    `lh`.`size_ratio` AS `size_ratio`,
+    `ar`.`algorithm_version` AS `algorithm_version`,
+    `ar`.`confidence_score` AS `confidence_score`,
+    `ar`.`risk_level` AS `risk_level`,
+    `rpr`.`front_hit_count` AS `front_hit_count`,
+    `rpr`.`back_hit_count` AS `back_hit_count`,
+    `rpr`.`hit_score` AS `hit_score`,
+    `rpr`.`performance_rating` AS `performance_rating`,
+    `upr`.`purchase_type` AS `purchased_type`,
+    `upr`.`front_hit_count` AS `purchased_front_hit`,
+    `upr`.`back_hit_count` AS `purchased_back_hit`,
+    `upr`.`winnings_amount` AS `purchased_winnings`
+from
+    (
+        (
+            (`lottery_history` `lh`
+            left join `algorithm_recommendation` `ar`
+                on((`lh`.`period_number` COLLATE utf8mb4_unicode_ci = `ar`.`period_number` COLLATE utf8mb4_unicode_ci))) -- 预修复 COLLATE
+        left join `reward_penalty_records` `rpr`
+            on((`ar`.`id` = `rpr`.`recommendation_id`)))
+    left join `user_purchase_records` `upr`
+        on((`ar`.`id` = `upr`.`period_metadata_id`))
+    );
 SET FOREIGN_KEY_CHECKS = 1;

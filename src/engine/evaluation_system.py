@@ -1,86 +1,91 @@
-# engine/evaluation_system.py
-from typing import List, Dict, Any
+# ======================================================================
+# --- FILE: src/engine/evaluation_system.py (COMPLETE REPLACEMENT V3) ---
+# ======================================================================
+
+import json
+import re  # 导入正则表达式模块
+from typing import List, Dict, Any, Set
+
+# 您的数据模型，如果路径不正确请相应修改
 from src.model.lottery_models import (
-    LotteryHistory, RewardPenaltyRecord,
-    AlgorithmPerformance, AlgorithmRecommendation
+    RewardPenaltyRecord
 )
 
 class EvaluationSystem:
-    """评估反馈系统"""
+    """
+    评估系统 V3
+    - 核心职责：根据开奖结果，计算单个推荐组合的奖罚得分。
+    - 增强了数字解析的健壮性。
+    """
 
-    def __init__(self):
-        self.performance_metrics = {}
+    def calculate_reward_record(self, recommendation_main: Dict, recommendation_detail: Dict, actual_draw: Dict) -> Dict:
+        """
+        根据最终推荐详情和开奖结果，计算一个可直接存入数据库的“奖罚记录”字典。
+        V3版 - 极度健壮，能处理各种格式错误的号码字符串。
+        """
+        # 1. 准备标准答案（开奖号码）
+        actual_front: Set[int] = {actual_draw[f'front_area_{i + 1}'] for i in range(5)}
+        actual_back: Set[int] = {actual_draw[f'back_area_{i + 1}'] for i in range(2)}
 
-    def evaluate_recommendation(self, recommendation: AlgorithmRecommendation,
-                              actual_result: LotteryHistory) -> RewardPenaltyRecord:
-        """评估推荐结果"""
-        # 计算命中数量
-        front_hit_count = len(set(recommendation.recommendation_combinations[0]['front_numbers']) &
-                             set(actual_result.front_area))
-        back_hit_count = len(set(recommendation.recommendation_combinations[0]['back_numbers']) &
-                            set(actual_result.back_area))
+        # 2. 准备预测答案，并进行健壮的解析
+        pred_front_str = recommendation_detail.get('front_numbers', '')
+        pred_back_str = recommendation_detail.get('back_numbers', '')
 
-        # 计算命中得分
-        hit_score = front_hit_count * 2 + back_hit_count * 3
+        def parse_numbers(num_str: Any) -> Set[int]:
+            """一个非常健壮的解析器，可以处理字符串、列表、None等。"""
+            if not num_str:
+                return set()
+            # 如果已经是列表或集合，直接处理
+            if isinstance(num_str, (list, set)):
+                return {int(n) for n in num_str if str(n).isdigit()}
+            # 如果是字符串，用正则表达式提取所有数字
+            if isinstance(num_str, str):
+                numbers = re.findall(r'\d+', num_str)
+                return set(map(int, numbers))
+            return set()
 
-        # 计算奖励积分和惩罚积分
-        reward_points = hit_score * 10
-        penalty_points = 0 if hit_score > 0 else 5
+        pred_front_set = parse_numbers(pred_front_str)
+        pred_back_set = parse_numbers(pred_back_str)
 
-        # 创建评估记录
-        evaluation_record = RewardPenaltyRecord(
-            id=0,
-            period_number=actual_result.period_number,
-            algorithm_version=recommendation.algorithm_version,
-            recommendation_id=recommendation.id,
-            front_hit_count=front_hit_count,
-            back_hit_count=back_hit_count,
-            hit_score=hit_score,
-            reward_points=reward_points,
-            penalty_points=penalty_points,
-            net_points=reward_points - penalty_points,
-            hit_details={
-                'front_hit': list(set(recommendation.recommendation_combinations[0]['front_numbers']) &
-                                set(actual_result.front_area)),
-                'back_hit': list(set(recommendation.recommendation_combinations[0]['back_numbers']) &
-                               set(actual_result.back_area))
-            },
-            missed_numbers={
-                'front_missed': list(set(actual_result.front_area) -
-                                   set(recommendation.recommendation_combinations[0]['front_numbers'])),
-                'back_missed': list(set(actual_result.back_area) -
-                                  set(recommendation.recommendation_combinations[0]['back_numbers']))
-            }
-        )
+        # 3. 计算命中数
+        front_hits = len(pred_front_set & actual_front)
+        back_hits = len(pred_back_set & actual_back)
 
-        return evaluation_record
+        # 4. 计算得分和奖罚
+        # 评分逻辑：后区命中权重远大于前区
+        hit_score = (front_hits * 10) + (back_hits * 25)
+        reward_points = hit_score * 1.5
+        penalty_points = 0 if hit_score > 5 else 50 # 只有得分大于5才免罚
 
-    def update_algorithm_performance(self, evaluation_record: RewardPenaltyRecord) -> AlgorithmPerformance:
-        """更新算法性能数据"""
-        # 实现性能更新逻辑
-        performance = AlgorithmPerformance(
-            id=0,
-            algorithm_version=evaluation_record.algorithm_version
-        )
-
-        return performance
-
-    def calculate_performance_metrics(self, evaluation_records: List[RewardPenaltyRecord]) -> Dict[str, Any]:
-        """计算性能指标"""
-        if not evaluation_records:
-            return {}
-
-        total_recommendations = len(evaluation_records)
-        total_front_hits = sum([rec.front_hit_count for rec in evaluation_records])
-        total_back_hits = sum([rec.back_hit_count for rec in evaluation_records])
-
-        metrics = {
-            'total_recommendations': total_recommendations,
-            'avg_front_hit_rate': total_front_hits / (total_recommendations * 5),  # 假设每组5个前区号码
-            'avg_back_hit_rate': total_back_hits / (total_recommendations * 2),   # 假设每组2个后区号码
-            'total_reward_points': sum([rec.reward_points for rec in evaluation_records]),
-            'total_penalty_points': sum([rec.penalty_points for rec in evaluation_records]),
-            'net_points': sum([rec.net_points for rec in evaluation_records])
+        # 5. 组装成DAO需要的字典
+        reward_data = {
+            'period_number': recommendation_main['period_number'],
+            'algorithm_version': recommendation_main['algorithm_version'],
+            'recommendation_id': recommendation_main['id'],
+            'front_hit_count': front_hits,
+            'back_hit_count': back_hits,
+            'hit_score': hit_score,
+            'reward_points': reward_points,
+            'penalty_points': penalty_points,
+            'net_points': reward_points - penalty_points,
+            'hit_details': json.dumps({
+                "evaluated_combo_type": recommendation_detail.get('recommend_type', 'N/A'),
+                "front_hits_numbers": sorted(list(pred_front_set & actual_front)),
+                "back_hits_numbers": sorted(list(pred_back_set & actual_back))
+            }, ensure_ascii=False),
+            'missed_numbers': json.dumps({
+                "front_missed": sorted(list(actual_front - pred_front_set)),
+                "back_missed": sorted(list(actual_back - pred_back_set))
+            }, ensure_ascii=False),
+            'performance_rating': self._calculate_rating(front_hits, back_hits)
         }
+        return reward_data
 
-        return metrics
+    def _calculate_rating(self, front_hits: int, back_hits: int) -> int:
+        """根据命中数计算1-5星评级"""
+        if back_hits == 2 and front_hits >= 3: return 5  # 一等奖
+        if back_hits == 2 and front_hits == 2: return 4  # 二等奖
+        if (back_hits == 1 and front_hits >= 3) or (back_hits == 2 and front_hits < 2): return 3 # 三、四等奖
+        if front_hits >= 4: return 2 # 五、六等奖
+        if (back_hits == 1 and front_hits < 3) or (front_hits == 3): return 1 # 七、八等奖
+        return 0 # 未中奖

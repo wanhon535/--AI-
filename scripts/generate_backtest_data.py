@@ -1,233 +1,154 @@
-# scripts/generate_backtest_data.py (完整字段版本)
+# 文件: scripts/generate_backtest_data.py (V6 - 历史顺序修复版)
+
 import os
 import sys
 import json
 from datetime import datetime
 
-# 环境设置
+# --- 环境设置 ---
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
+# --- 核心组件导入 ---
 from src.database.database_manager import DatabaseManager
-from src.algorithms.dynamic_ensemble_optimizer import DynamicEnsembleOptimizer
-from src.algorithms.statistical_algorithms import (
-    FrequencyAnalysisAlgorithm, HotColdNumberAlgorithm, OmissionValueAlgorithm
-)
-from src.algorithms.advanced_algorithms.bayesian_number_predictor import BayesianNumberPredictor
-from src.algorithms.advanced_algorithms.markov_transition_model import MarkovTransitionModel
-from src.algorithms.advanced_algorithms.number_graph_analyzer import NumberGraphAnalyzer
+from src.config.database_config import DB_CONFIG
 from src.model.lottery_models import LotteryHistory
-from src.engine.performance_logger import PerformanceLogger
+from src.engine.algorithm_factory import create_algorithms_from_db
+from src.algorithms.dynamic_ensemble_optimizer import DynamicEnsembleOptimizer
+from src.engine.recommendation_engine import RecommendationEngine
+from src.llm.clients import get_llm_client
+from src.prompt_templates import build_lotto_pro_prompt_v14_omega
 
-DB_CONFIG = dict(
-    host='localhost', user='root', password='123456789',
-    database='lottery_analysis_system', port=3309
-)
+# --- 配置 ---
+BACKFILL_LLM_MODEL = "qwen3-max"
 
 
-def generate_backtest_data():
-    """为历史期号生成完整的回测数据"""
+def run_full_historical_simulation():
+    """
+    执行一次完整的历史模拟，为所有缺失的期号生成包括LLM决策在内的完整推荐记录。
+    """
     db_manager = DatabaseManager(**DB_CONFIG)
     if not db_manager.connect():
         print("❌ 数据库连接失败")
         return
 
-    print("\n" + "=" * 60)
-    print("🚀 开始生成完整历史回测数据...")
-    print("=" * 60)
+    print("\n" + "#" * 70)
+    print("###      🚀 开始执行全流程历史回测模拟      ###")
+    print(f"###      (将使用模型: {BACKFILL_LLM_MODEL})      ###")
+    print("#" * 70)
 
     try:
-        # 1. 获取所有需要回测的历史期号
-        all_history_dicts = db_manager.get_all_lottery_history(200)
-        if not all_history_dicts or len(all_history_dicts) < 50:
-            print("❌ 历史数据不足，无法生成回测数据")
+        # 1. 找出需要回填的“空档期”
+        all_history_periods_raw = db_manager.execute_query(
+            "SELECT period_number FROM lottery_history ORDER BY period_number ASC")
+        processed_periods_raw = db_manager.execute_query(
+            "SELECT DISTINCT period_number FROM algorithm_recommendation WHERE algorithm_version LIKE %s",
+            (f"{BACKFILL_LLM_MODEL}%",)
+        )
+        all_history_periods = {p['period_number'] for p in all_history_periods_raw}
+        processed_periods = {p['period_number'] for p in processed_periods_raw}
+        periods_to_fill = sorted(list(all_history_periods - processed_periods))
+
+        if not periods_to_fill:
+            print("  - ✅ 恭喜！所有历史期号都已有模型的回测推荐记录，无需回填。")
             return
 
-        # 转换为 LotteryHistory 对象
-        all_history_data = []
-        for record_dict in all_history_dicts:
-            lottery_record = LotteryHistory()
-            lottery_record.period_number = record_dict['period_number']
-            lottery_record.draw_date = record_dict['draw_date']
-            lottery_record.front_area = [
-                record_dict['front_area_1'],
-                record_dict['front_area_2'],
-                record_dict['front_area_3'],
-                record_dict['front_area_4'],
-                record_dict['front_area_5']
-            ]
-            lottery_record.back_area = [
-                record_dict['back_area_1'],
-                record_dict['back_area_2']
-            ]
-            all_history_data.append(lottery_record)
+        print(f"  - 📊 发现 {len(periods_to_fill)} 个历史期号需要生成完整的模拟推荐。")
 
-        # 2. 获取需要回测的期号
-        periods_to_process = []
-        for i in range(50, len(all_history_data)):
-            period = all_history_data[i].period_number
-            periods_to_process.append(period)
-
-        if not periods_to_process:
-            print("✅ 所有历史期号都已存在回测数据")
+        # 2. 准备固定的组件
+        base_algorithms = create_algorithms_from_db(db_manager)
+        llm_client = get_llm_client(BACKFILL_LLM_MODEL)
+        if not base_algorithms or not llm_client:
+            print("  - ❌ 错误: 无法加载算法或LLM客户端，回填终止。")
             return
 
-        print(f"📊 发现 {len(periods_to_process)} 个需要生成回测数据的期号")
+        # --- 核心修复：确保加载的数据是按期号升序排列 ---
+        # 我们需要一个能返回 LotteryHistory 对象列表的方法
+        # 假设 db_manager 内部的 get_lottery_history 是降序的，我们需要自己写SQL
+        all_history_raw = db_manager.execute_query("SELECT * FROM lottery_history ORDER BY period_number ASC")
+        if not all_history_raw:
+            print("❌ 历史数据为空。")
+            return
 
-        # 3. 初始化算法列表和性能记录器
-        base_algorithms = [
-            FrequencyAnalysisAlgorithm(),
-            HotColdNumberAlgorithm(),
-            OmissionValueAlgorithm(),
-            BayesianNumberPredictor(),
-            MarkovTransitionModel(),
-            NumberGraphAnalyzer(),
-        ]
+        # 手动将字典列表转换为对象列表，确保顺序正确
+        all_history_data = [LotteryHistory.from_dict(d) for d in all_history_raw]
+        # (注意: 您需要在 LotteryHistory 类中添加一个 from_dict 的类方法)
 
-        performance_logger = PerformanceLogger(db_manager=db_manager)
-
-        # 4. 为每个期号生成完整的回测数据
-        for i, period in enumerate(periods_to_process, 1):
-            print(f"\n--- 正在处理期号: {period} ({i}/{len(periods_to_process)}) ---")
+        # 3. 遍历所有“空档期”，执行完整的预测与存储流程
+        for i, period in enumerate(periods_to_fill, 1):
+            print(f"\n--- 正在模拟进度: {i}/{len(periods_to_fill)} (期号: {period}) ---")
 
             try:
-                # 获取该期号之前的历史数据
-                current_index = next((idx for idx, record in enumerate(all_history_data)
-                                      if record.period_number == period), -1)
-
-                if current_index == -1 or current_index < 30:
-                    print(f"  - ⏸️ 跳过: 期号 {period} 的历史数据不足")
+                # a. 准备“当时”的训练数据
+                current_index = next(idx for idx, draw in enumerate(all_history_data) if draw.period_number == period)
+                training_data = all_history_data[:current_index]
+                if len(training_data) < 30:
+                    print(f"  - ⏸️  跳过: 历史数据不足30期。")
                     continue
 
-                training_data = all_history_data[:current_index]
+                # ... (后续的 b, c, d, e 步骤完全保持不变) ...
+                individual_predictions, algorithm_parameters = {}, {}
+                for algo in base_algorithms:
+                    algo.train(training_data)
+                    prediction = algo.predict(training_data)
+                    individual_predictions[algo.name] = prediction
+                    algorithm_parameters[algo.name] = {'version': getattr(algo, 'version', '1.0')}
 
-                # 运行所有算法生成预测
-                individual_predictions = {}
-                algorithm_parameters = {}
-
-                for algorithm in base_algorithms:
-                    try:
-                        algorithm.train(training_data)
-                        prediction = algorithm.predict(training_data)
-                        individual_predictions[algorithm.name] = prediction
-
-                        # 收集算法参数
-                        algorithm_parameters[algorithm.name] = {
-                            'version': getattr(algorithm, 'version', '1.0'),
-                            'parameters': getattr(algorithm, 'get_parameters', lambda: {})(),
-                            'trained_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                        }
-
-                        # 插入 algorithm_performance 表
-                        performance_data = {
-                            'algorithm_version': f"{algorithm.name}_{getattr(algorithm, 'version', '1.0')}",
-                            'period_number': period,
-                            'predictions': json.dumps(prediction, ensure_ascii=False),
-                            'confidence_score': prediction.get('confidence', 0.5),
-                            'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                        }
-                        performance_logger.dao.insert_algorithm_performance(performance_data)
-                        print(f"  - ✅ {algorithm.name} 预测完成并存储性能数据")
-
-                    except Exception as e:
-                        print(f"  - ❌ {algorithm.name} 预测失败: {e}")
-                        continue
-
-                # 生成集成预测和模型权重
-                ensemble_optimizer = DynamicEnsembleOptimizer(base_algorithms)
-                ensemble_optimizer.train(training_data)
-                ensemble_prediction = ensemble_optimizer.predict(training_data)
-
-                # 获取模型权重
-                model_weights = ensemble_optimizer.current_weights
-
-                # 提取关键模式
-                key_patterns = {
-                    'hot_numbers': individual_predictions.get('HotColdNumberAlgorithm', {}).get('hot_numbers', []),
-                    'high_frequency': individual_predictions.get('FrequencyAnalysisAlgorithm', {}).get(
-                        'high_frequency_numbers', []),
-                    'high_omission': individual_predictions.get('OmissionValueAlgorithm', {}).get(
-                        'high_omission_numbers', []),
-                    'generated_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                }
-
-                # 构建完整的分析基础数据
-                analysis_basis = {
-                    'period_number': period,
-                    'generated_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                    'individual_predictions': individual_predictions,  # 这应该是字典，不是字符串
-                    'ensemble_prediction': ensemble_prediction,
-                    'algorithms_used': [algo.name for algo in base_algorithms],
-                    'history_data_count': len(training_data),
-                    'training_period_range': {
-                        'start': training_data[0].period_number if training_data else None,
-                        'end': training_data[-1].period_number if training_data else None
-                    }
-                }
-
-                # 插入到 algorithm_recommendation 表（完整字段）
-                root_id = db_manager.insert_algorithm_recommendation_root(
-                    period_number=period,
-                    recommend_time=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                    algorithm_version="backtest_data_generator_v2.0",
-                    algorithm_parameters=json.dumps(algorithm_parameters, ensure_ascii=False),
-                    model_weights=json.dumps(model_weights, ensure_ascii=False),
-                    confidence_score=ensemble_prediction.get('confidence', 0.7),
-                    risk_level=ensemble_prediction.get('risk_level', 'medium'),
-                    analysis_basis=json.dumps(analysis_basis, ensure_ascii=False),  # 确保是JSON字符串
-                    key_patterns=json.dumps(key_patterns, ensure_ascii=False),
-                    models=','.join([algo.name for algo in base_algorithms])
+                optimizer = DynamicEnsembleOptimizer(base_algorithms)
+                optimizer.train(training_data)
+                engine = RecommendationEngine()
+                engine.set_meta_algorithm(optimizer)
+                final_report = engine.generate_final_recommendation(
+                    history_data=training_data,
+                    individual_predictions=individual_predictions
                 )
 
-                if root_id:
-                    # 插入推荐详情到 recommendation_details 表
-                    details_to_insert = []
+                prompt_text, _ = build_lotto_pro_prompt_v14_omega(
+                    recent_draws=training_data, model_outputs=final_report,
+                    performance_log=optimizer.current_weights, next_issue_hint=period
+                )
+                print(f"  - 🧠 正在调用 {BACKFILL_LLM_MODEL} 为期号 {period} 进行决策...")
+                response_str = llm_client.generate(system_prompt=prompt_text, user_prompt="Execute final analysis.")
+                response_data = json.loads(response_str)
 
-                    # 添加集成推荐
-                    ensemble_details = {
-                        "recommend_type": "ensemble_prediction",
-                        "strategy_logic": "动态集成优化算法综合推荐",
-                        "front_numbers": ','.join(map(str, ensemble_prediction.get('front_area', []))),
-                        "back_numbers": ','.join(map(str, ensemble_prediction.get('back_area', []))),
-                        "win_probability": ensemble_prediction.get('confidence', 0.7)
-                    }
-                    details_to_insert.append(ensemble_details)
+                final_summary = response_data.get('final_summary', {})
+                recommendations_from_llm = response_data['cognitive_cycle_outputs']['phase4_portfolio_construction'][
+                    'recommendations']
 
-                    # 添加各算法推荐
-                    for algo_name, prediction in individual_predictions.items():
-                        algo_details = {
-                            "recommend_type": f"{algo_name}_prediction",
-                            "strategy_logic": f"{algo_name}算法独立推荐",
-                            "front_numbers": ','.join(map(str, prediction.get('front_area', []))),
-                            "back_numbers": ','.join(map(str, prediction.get('back_area', []))),
-                            "win_probability": prediction.get('confidence', 0.5)
-                        }
-                        details_to_insert.append(algo_details)
+                root_id = db_manager.insert_algorithm_recommendation_root(
+                    period_number=period,
+                    algorithm_version=f"{BACKFILL_LLM_MODEL} (Backfill V1)",
+                    algorithm_parameters=json.dumps(algorithm_parameters, ensure_ascii=False),
+                    model_weights=json.dumps(optimizer.current_weights, ensure_ascii=False),
+                    confidence_score=final_summary.get('confidence_level', 0.8),
+                    risk_level=final_summary.get('risk_assessment', 'medium'),
+                    analysis_basis=json.dumps(final_report, ensure_ascii=False),
+                    llm_cognitive_details=json.dumps(response_data.get('cognitive_cycle_outputs', {}),
+                                                     ensure_ascii=False),
+                    key_patterns=json.dumps({}, ensure_ascii=False),
+                    models=','.join([a.name for a in base_algorithms])
+                )
+                if not root_id: raise Exception("插入主记录失败")
 
-                    # 批量插入详情
-                    db_manager.insert_recommendation_details_batch(root_id, details_to_insert)
-
-                    print(f"  - ✅ 成功生成完整回测数据，记录ID: {root_id}")
-                    print(f"  - 📊 存储了 {len(details_to_insert)} 条推荐详情")
-                else:
-                    print(f"  - ❌ 插入回测数据失败")
+                details_to_insert = [
+                    {"recommend_type": rec.get('type', 'Unknown'), "strategy_logic": rec.get('role_in_portfolio', ''),
+                     "front_numbers": ','.join(map(str, rec.get('front_numbers', []))),
+                     "back_numbers": ','.join(map(str, rec.get('back_numbers', []))),
+                     "win_probability": rec.get('confidence_score', 0.0)}
+                    for rec in recommendations_from_llm
+                ]
+                db_manager.insert_recommendation_details_batch(root_id, details_to_insert)
+                print(f"  - ✅ 成功存储期号 {period} 的完整模拟推荐 (ID: {root_id})。")
 
             except Exception as e:
-                print(f"  - ❌ 处理期号 {period} 时出错: {e}")
-                import traceback
-                traceback.print_exc()
+                print(f"\n  - ❌ 处理期号 {period} 时发生错误: {e}")
                 continue
-
-        print(f"\n✨ 完整回测数据生成完成！共处理 {len(periods_to_process)} 个期号")
-
-    except Exception as e:
-        print(f"❌ 生成回测数据过程中出错: {e}")
-        import traceback
-        traceback.print_exc()
+    # ... (finally 块保持不变) ...
     finally:
-        db_manager.disconnect()
+        if db_manager and db_manager.is_connected():
+            db_manager.disconnect()
 
 
 if __name__ == "__main__":
-    generate_backtest_data()
+    run_full_historical_simulation()

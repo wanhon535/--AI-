@@ -108,14 +108,15 @@
 | 字段名 | 类型 | 允许空 | 默认值 | 注释 |
 |--------|------|--------|--------|------|
 | id | bigint(20) | NO | NULL | 主键，自增ID |
-| period_number | varchar(20) | NO | NULL | 推荐期号 |
+| period_number | varchar(20) | YES | NULL | 推荐期号 |
 | recommend_time | datetime | NO | NULL | 推荐时间 |
 | algorithm_version | varchar(50) | NO | NULL | 算法版本 |
 | algorithm_parameters | json | YES | NULL | 算法参数配置 |
 | model_weights | json | YES | NULL | 模型权重配置 |
-| confidence_score | decimal(5,4) | NO | NULL | 总体置信度 |
-| risk_level | enum('low','medium','high') | NO | NULL | 总体风险等级 |
+| confidence_score | decimal(5, 4) | NO | NULL | 总体置信度 |
+| risk_level | varchar(100) | YES | medium | 总体风险等级 |
 | analysis_basis | json | YES | NULL | 分析依据数据 |
+| llm_cognitive_details | json | YES | NULL |  |
 | key_patterns | json | YES | NULL | 关键模式识别 |
 | models | varchar(255) | YES | NULL | 推荐模型名称 |
 | created_at | timestamp | YES | CURRENT_TIMESTAMP | 创建时间 |
@@ -249,15 +250,15 @@
 | number | tinyint(4) | NO | NULL | 号码 |
 | number_type | enum('front','back') | NO | NULL | 号码类型：前区/后区 |
 | total_appearances | int(11) | YES | 0 | 总出现次数 |
-| appearance_rate | decimal(5,4) | YES | 0.0000 | 出现频率 |
+| appearance_rate | decimal(5, 4) | YES | 0.0000 | 出现频率 |
 | recent_10_appearances | int(11) | YES | 0 | 最近10期出现次数 |
 | recent_20_appearances | int(11) | YES | 0 | 最近20期出现次数 |
 | recent_50_appearances | int(11) | YES | 0 | 最近50期出现次数 |
 | current_omission | int(11) | YES | 0 | 当前遗漏期数 |
 | max_omission | int(11) | YES | 0 | 历史最大遗漏 |
-| avg_omission | decimal(6,2) | YES | 0.00 | 平均遗漏 |
+| avg_omission | decimal(6, 2) | YES | 0.00 | 平均遗漏 |
 | heat_status | enum('hot','warm','cold','very_cold') | YES | 'warm' | 热冷状态 |
-| heat_score | decimal(5,2) | YES | 0.00 | 热度评分 |
+| heat_score | decimal(5, 2) | YES | 0.00 | 热度评分 |
 | strong_followers | json | YES | NULL | 强跟随号码 |
 | strong_precursors | json | YES | NULL | 强前导号码 |
 | position_preference | json | YES | NULL | 位置偏好统计 |
@@ -324,7 +325,7 @@
 | strategy_logic | varchar(255) | YES | NULL | 策略逻辑/说明 |
 | front_numbers | varchar(100) | YES | NULL | 前区号码，逗号分隔 |
 | back_numbers | varchar(100) | YES | NULL | 后区号码，逗号分隔 |
-| win_probability | decimal(10,5) | YES | NULL | 预计中奖概率 |
+| win_probability | decimal(10, 5) | YES | NULL | 预计中奖概率 |
 | created_at | timestamp | YES | CURRENT_TIMESTAMP | 创建时间 |
 
 ### 14. reward_penalty_records (奖罚分明记录表)
@@ -339,14 +340,14 @@
 | recommendation_id | bigint(20) | NO | NULL | 对应的推荐批次ID (关联到元数据表) |
 | front_hit_count | tinyint(4) | NO | NULL | 前区命中数量 |
 | back_hit_count | tinyint(4) | NO | NULL | 后区命中数量 |
-| hit_score | decimal(5,2) | NO | NULL | 命中得分 |
-| reward_points | decimal(8,2) | NO | NULL | 奖励积分 |
-| penalty_points | decimal(8,2) | NO | NULL | 惩罚积分 |
-| net_points | decimal(8,2) | NO | NULL | 净积分 |
+| hit_score | decimal(5, 2) | NO | NULL | 命中得分 |
+| reward_points | decimal(8, 2) | NO | NULL | 奖励积分 |
+| penalty_points | decimal(8, 2) | NO | NULL | 惩罚积分 |
+| net_points | decimal(8, 2) | NO | NULL | 净积分 |
 | hit_details | json | YES | NULL | 命中详情 |
 | missed_numbers | json | YES | NULL | 未命中号码分析 |
 | performance_rating | tinyint(4) | YES | NULL | 表现评级(1-5星) |
-| accuracy_deviation | decimal(5,4) | YES | NULL | 准确度偏差 |
+| accuracy_deviation | decimal(5, 4) | YES | NULL | 准确度偏差 |
 | improvement_suggestions | text | YES | NULL | 改进建议 |
 | evaluation_time | timestamp | YES | CURRENT_TIMESTAMP | 评估时间 |
 
@@ -359,10 +360,10 @@
 | id | bigint(20) | NO | NULL | 主键，自增ID |
 | metric_name | varchar(100) | NO | NULL | 指标名称 |
 | metric_category | enum('performance','accuracy','resource','business') | NO | NULL | 指标分类 |
-| metric_value | decimal(15,6) | NO | NULL | 指标数值 |
+| metric_value | decimal(15, 6) | NO | NULL | 指标数值 |
 | metric_unit | varchar(20) | YES | NULL | 指标单位 |
-| warning_threshold | decimal(15,6) | YES | NULL | 警告阈值 |
-| critical_threshold | decimal(15,6) | YES | NULL | 严重阈值 |
+| warning_threshold | decimal(15, 6) | YES | NULL | 警告阈值 |
+| critical_threshold | decimal(15, 6) | YES | NULL | 严重阈值 |
 | current_status | enum('normal','warning','critical') | YES | 'normal' | 当前状态 |
 | collected_at | timestamp | YES | CURRENT_TIMESTAMP | 采集时间 |
 
@@ -378,11 +379,11 @@
 | purchase_type | varchar(50) | NO | NULL | 实际购买类型 (例如: 7+3复式, 单式A) |
 | front_numbers_purchased | varchar(100) | NO | NULL | 实际购买的前区号码（逗号分隔） |
 | back_numbers_purchased | varchar(100) | NO | NULL | 实际购买的后区号码（逗号分隔） |
-| cost | decimal(10,2) | YES | NULL | 购买花费金额 |
+| cost | decimal(10, 2) | YES | NULL | 购买花费金额 |
 | is_hit | tinyint(1) | YES | 0 | 是否中奖 |
 | front_hit_count | tinyint(4) | YES | 0 | 前区实际命中个数 (用于奖罚计算) |
 | back_hit_count | tinyint(4) | YES | 0 | 后区实际命中个数 (用于奖罚计算) |
-| winnings_amount | decimal(12,2) | YES | 0.00 | 实际中奖金额 |
+| winnings_amount | decimal(12, 2) | YES | 0.00 | 实际中奖金额 |
 | purchase_time | datetime | NO | NULL | 实际购买时间 |
 | created_at | timestamp | YES | CURRENT_TIMESTAMP | 创建时间 |
 

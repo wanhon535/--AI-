@@ -13,16 +13,26 @@ class DatabaseConnectionManager:
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    def __init__(self, host: str, user: str, password: str, database: str, port: int = 3309):
+    # def __init__(self, host: str, user: str, password: str, database: str, port: int = 3309):
+    #     if not hasattr(self, '_initialized'):
+    #         self.connection_config = {
+    #             'host': host,
+    #             'user': user,
+    #             'password': password,
+    #             'database': database,
+    #             'port': port,
+    #             'charset': 'utf8mb4'
+    #         }
+    #         self._daos = {}
+    #         self._initialized = True
+    def __init__(self, **connection_kwargs: Any):
+        """
+        (V2 - 升级版)
+        直接接收所有数据库连接参数。
+        """
         if not hasattr(self, '_initialized'):
-            self.connection_config = {
-                'host': host,
-                'user': user,
-                'password': password,
-                'database': database,
-                'port': port,
-                'charset': 'utf8mb4'
-            }
+            # 直接将所有传入的参数作为连接配置
+            self.connection_config = connection_kwargs
             self._daos = {}
             self._initialized = True
 

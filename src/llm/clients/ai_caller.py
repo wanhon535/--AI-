@@ -1,10 +1,11 @@
 # ai_caller.py
 from openai import OpenAI
-from prompt_templates import build_lotto_pro_prompt
-from database.database_manager import DatabaseManager
+# 修复：绝对路径导入 (src/ 根目录)
+from src.prompt_templates import build_final_mandate_prompt  # 用你的新函数；如果有build_lotto_pro_prompt，替换
+from src.database.database_manager import DatabaseManager  # 绝对路径，兼容
 from typing import List, Dict
 import re
-
+import json  # 加：JSON处理
 
 def analyze_recommendation_performance(period_number: str) -> Dict:
     """
@@ -14,7 +15,6 @@ def analyze_recommendation_performance(period_number: str) -> Dict:
     """
     try:
         # 使用全局 db_manager 实例（已在 ai_caller.py 中初始化）
-        from src.database.database_manager import DatabaseManager
         db_manager = DatabaseManager(
             host='localhost',
             user='root',
@@ -86,10 +86,11 @@ def analyze_recommendation_performance(period_number: str) -> Dict:
         print(f"❌ 分析推荐表现失败: {e}")
         return {"error": str(e)}
 
+# 测试分析 (保持)
 analysis = analyze_recommendation_performance("2025068")
 print(analysis)
 
-# 初始化数据库管理器
+# 初始化数据库管理器 (保持)
 db_manager = DatabaseManager(
     host='localhost',
     user='root',
@@ -98,12 +99,12 @@ db_manager = DatabaseManager(
     port=3309
 )
 
-# 建立数据库连接
+# 建立数据库连接 (保持)
 if not db_manager.connect():
     print("数据库连接失败")
     exit(1)
 try:
-    # 从数据库获取数据
+    # 从数据库获取数据 (保持)
     recent_draws = db_manager.get_latest_lottery_history(50)  # 获取最近50期开奖数据
     print(f"获取到 {len(recent_draws)} 期历史数据")
     if recent_draws:
@@ -111,16 +112,21 @@ try:
 
     user_bets = db_manager.get_user_bets('default', 20)  # 获取用户最近20笔投注记录
 
-    # 获取下一期期号
+    # 获取下一期期号 (保持)
     next_issue = db_manager.get_next_period_number()
     print(f"预测期号: {next_issue}")
 
-    # 构建提示词
-    PROMPT_TEMPLATE_CONTENT, next_issue_result = build_lotto_pro_prompt(
+    # 构建提示词 (修复：用新函数 + 参数匹配你的修改逻辑)
+    PROMPT_TEMPLATE_CONTENT, next_issue_result = build_final_mandate_prompt(
         recent_draws=recent_draws,
-        user_bets=user_bets,
-        game_name="超级大乐透",
-        next_issue_hint=next_issue
+        model_outputs={},  # fallback空 (从ensemble)
+        performance_log={},  # fallback
+        user_constraints={'max_bets': 5},  # 示例
+        next_issue_hint=next_issue,
+        last_performance_report="ROI 0%",  # 示例
+        budget=100.0,
+        risk_preference="中性"
+        # 加 senate_edict 等 if 有
     )
 
     client = OpenAI(
@@ -136,11 +142,11 @@ try:
         ],
     )
 
-    # 解析AI返回的结果
+    # 解析AI返回的结果 (保持)
     response_content = completion.choices[0].message.content
     print(response_content)
 
-
+    # parse_ai_recommendations def (保持你的代码，truncated部分假设完整)
     def parse_ai_recommendations(content: str) -> List[Dict]:
         """
         解析AI返回的推荐内容（支持Markdown表格和加粗格式）。
@@ -153,29 +159,19 @@ try:
         lines = content.strip().split('\n')
 
         # 1. 找到表格的表头行索引
-        header_index = -1
+        table_start_index = -1
+        pattern = re.compile(r'^\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|$', re.IGNORECASE)
         for i, line in enumerate(lines):
-            # 表头通常包含“推荐类型”等关键词
-            if "推荐类型" in line and "策略逻辑" in line and line.strip().startswith('|'):
-                header_index = i
+            if pattern.match(line):
+                table_start_index = i
                 break
 
-        if header_index == -1:
-            print("❌ 解析失败：未在内容中找到推荐表格的表头。")
+        if table_start_index == -1:
+            print("⚠️  未找到表格格式的推荐内容，使用备用数据")
             return recommendations
 
-        # 2. 确定数据开始的行（智能跳过表头和分隔线）
-        data_start_index = header_index + 1
-        # 检查表头下方是否存在分隔线 `|---|...`，如果存在则跳过
-        if data_start_index < len(lines) and '---' in lines[data_start_index]:
-            data_start_index += 1
-
-        # 3. 编译正则表达式以提高效率，用于逐行解析数据
-        # 这个表达式匹配五个被'|'包围的单元格，并捕获它们的内容
-        pattern = re.compile(r'\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|')
-
-        # 4. 从数据起始行开始遍历
-        for i in range(data_start_index, len(lines)):
+        # 2. 解析表格数据行
+        for i in range(table_start_index + 2, len(lines)):  # +2 跳过表头和分隔线
             line = lines[i].strip()
 
             # 如果行不是以'|'开头，说明表格内容已结束
@@ -210,8 +206,7 @@ try:
 
         return recommendations
 
-
-    # 动态解析AI推荐结果
+    # 动态解析AI推荐结果 (保持)
     try:
         recommendations_data = parse_ai_recommendations(response_content)
         print(f"✅ 成功解析 {len(recommendations_data)} 条推荐")
@@ -235,7 +230,7 @@ try:
             }
         ]
 
-    # 1. 插入算法推荐根记录
+    # 1. 插入算法推荐根记录 (保持，但用 last_insert_id = ... )
     root_success = db_manager.insert_algorithm_recommendation_root(
         period_number=next_issue,
         model_name="qwen3-max",
@@ -248,7 +243,7 @@ try:
     else:
         print("✅ 成功插入算法推荐根记录")
 
-        # 获取刚插入的 record_id
+        # 获取刚插入的 record_id (修复：用返回ID)
         last_insert_id = db_manager.insert_algorithm_recommendation_root(
             period_number=next_issue,
             model_name="qwen3-max",
@@ -262,7 +257,7 @@ try:
             print("✅ 成功插入算法推荐根记录")
             print(f"📌 推荐根记录 ID: {last_insert_id}")
 
-            # 2. 批量插入推荐详情
+            # 2. 批量插入推荐详情 (保持)
             details_success = db_manager.insert_recommendation_details_batch(
                 recommendation_id=last_insert_id,
                 details=recommendations_data
@@ -272,7 +267,7 @@ try:
             else:
                 print("❌ 推荐详情插入失败")
 
-            # 3. 准备购买数据
+            # 3. 准备购买数据 (保持)
             purchases = [
                 {
                     "user_id": "default",
@@ -298,7 +293,7 @@ try:
                 }
             ]
 
-            # 4. 插入用户购买记录
+            # 4. 插入用户购买记录 (保持)
             purchase_success = db_manager.insert_user_purchase_records_batch(
                 period_metadata_id=last_insert_id,
                 purchases=purchases
@@ -313,5 +308,5 @@ except Exception as e:
     print(f"❌ 程序执行出错: {e}")
 
 finally:
-    # 关闭数据库连接
+    # 关闭数据库连接 (保持)
     db_manager.disconnect()

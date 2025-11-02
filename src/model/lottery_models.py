@@ -1,4 +1,5 @@
 # src/model/lottery_models.py
+import json
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 print("--- 我是 src/model/lottery_models.py 文件，我被成功加载了！ ---")
@@ -12,15 +13,15 @@ class LotteryHistory:
                  odd_even_ratio: str = None, size_ratio: str = None,
                  prime_composite_ratio: str = None,
                  consecutive_numbers: List[List[int]] = None,
-                 consecutive_count: int = None, tail_numbers: List[int] = None,
+                 consecutive_count: int = None, tail_numbers: Dict[str, Any] = None,  # 应该是字典
                  data_source: str = None, data_quality: int = None,
-                 created_at: datetime = None):
+                 created_at: datetime = None, updated_at: datetime = None, **kwargs):
         self.id = id
         self.period_number = period_number
         self.draw_date = draw_date
         self.draw_time = draw_time
-        self.front_area = front_area if front_area else []
-        self.back_area = back_area if back_area else []
+        self.front_area = front_area if front_area is not None else []
+        self.back_area = back_area if back_area is not None else []
         self.sum_value = sum_value
         self.span_value = span_value
         self.ac_value = ac_value
@@ -33,6 +34,43 @@ class LotteryHistory:
         self.data_source = data_source
         self.data_quality = data_quality
         self.created_at = created_at
+        self.updated_at = updated_at
+
+    # --- 使用这个功能完备的最终版本 ---
+    @classmethod
+    def from_dict(cls, data: dict):
+        """
+        一个健壮的类方法，用于从数据库返回的字典创建 LotteryHistory 实例。
+        """
+        if not data:
+            return None
+
+        init_data = data.copy()
+
+        # 1. 将分散的号码字段合并为列表，并从字典中移除
+        if 'front_area_1' in init_data:
+            init_data['front_area'] = [
+                init_data.pop('front_area_1', None), init_data.pop('front_area_2', None),
+                init_data.pop('front_area_3', None), init_data.pop('front_area_4', None),
+                init_data.pop('front_area_5', None)
+            ]
+
+        if 'back_area_1' in init_data:
+            init_data['back_area'] = [
+                init_data.pop('back_area_1', None), init_data.pop('back_area_2', None)
+            ]
+
+        # 2. 安全地解析 JSON 字符串字段
+        for json_field in ['consecutive_numbers', 'tail_numbers']:
+            if json_field in init_data and isinstance(init_data[json_field], str):
+                try:
+                    init_data[json_field] = json.loads(init_data[json_field])
+                except (json.JSONDecodeError, TypeError):
+                    init_data[json_field] = None  # 解析失败则设为 None
+
+        # 3. 使用解包语法创建类的实例
+        #    __init__ 方法中的 **kwargs 会优雅地处理掉所有我们不关心的额外字段
+        return cls(**init_data)
 
 class NumberStatistics:
     """号码统计实体类"""
@@ -269,3 +307,4 @@ class ABTestConfig:
         self.algorithm_b_performance = algorithm_b_performance if algorithm_b_performance else {}
         self.statistical_significance = statistical_significance
         self.created_by = created_by
+

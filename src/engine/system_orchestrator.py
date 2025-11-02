@@ -1,20 +1,13 @@
-# file: src/engine/system_orchestrator.py
+# 文件: src/engine/system_orchestrator.py (V2 - 具备冷启动能力)
 
 import json
-import traceback
-from collections import Counter
-from typing import List
+from collections import Counter, defaultdict
+from typing import List, Dict
 
 from src.database.database_manager import DatabaseManager
 from src.engine.recommendation_engine import RecommendationEngine
 from src.algorithms.dynamic_ensemble_optimizer import DynamicEnsembleOptimizer
-from src.algorithms.statistical_algorithms import (
-    FrequencyAnalysisAlgorithm, HotColdNumberAlgorithm, OmissionValueAlgorithm
-)
-from src.algorithms.advanced_algorithms.bayesian_number_predictor import BayesianNumberPredictor
-from src.algorithms.advanced_algorithms.markov_transition_model import MarkovTransitionModel
-from src.algorithms.advanced_algorithms.number_graph_analyzer import NumberGraphAnalyzer
-from src.model.lottery_models import LotteryHistory
+from src.algorithms import AVAILABLE_ALGORITHMS  # 使用我们创建的算法注册表
 
 
 class SystemOrchestrator:
@@ -22,28 +15,18 @@ class SystemOrchestrator:
 
     def __init__(self, db_manager: DatabaseManager):
         self.db = db_manager
-        self.engine = self._initialize_engine()
+        # self.engine = self._initialize_engine() # Engine 在需要时再初始化
 
     def _initialize_engine(self):
         """初始化一个用于回填和分析的推荐引擎实例。"""
-        base_algorithms = [
-            FrequencyAnalysisAlgorithm(), HotColdNumberAlgorithm(), OmissionValueAlgorithm(),
-            BayesianNumberPredictor(), MarkovTransitionModel(), NumberGraphAnalyzer(),
-        ]
+        # --- 核心修改：确保导入路径正确 ---
+        # 确认这个导入没有红色波浪线
+        from src.engine.algorithm_factory import AlgorithmFactory
+        base_algorithms = AlgorithmFactory.get_active_algorithms(self.db)
         chief_strategy_officer = DynamicEnsembleOptimizer(base_algorithms)
         engine = RecommendationEngine()
         engine.set_meta_algorithm(chief_strategy_officer)
         return engine
-
-    def check_and_initialize_data(self):
-        """
-        检查并初始化系统的基础数据（“冷启动”核心功能）。
-        """
-        print("\n" + "=" * 50)
-        print("🔍 检查并初始化系统基础数据...")
-        print("=" * 50)
-        self._populate_number_statistics()
-        self._populate_algorithm_configs()
 
     def backfill_analysis_basis(self):
         """
@@ -53,83 +36,145 @@ class SystemOrchestrator:
         print("🛠️  开始回填历史 `analysis_basis` 数据...")
         print("=" * 50)
 
-        query = "SELECT period_number FROM algorithm_recommendation WHERE analysis_basis IS NULL OR analysis_basis = '' ORDER BY period_number"
+        engine = self._initialize_engine()  # 在需要时才创建引擎实例
+
+        query = "SELECT period_number FROM algorithm_recommendation WHERE analysis_basis IS NULL OR analysis_basis = '' OR analysis_basis = '{}' ORDER BY period_number"
         records_to_fill = self.db.execute_query(query)
         issues_to_fill = [r['period_number'] for r in records_to_fill]
 
         if not issues_to_fill:
-            print("✅ 无需回填。")
+            print("  - ✅ 无需回填。")
             return
 
-        print(f"🔎 发现 {len(issues_to_fill)} 条记录需要回填。")
+        print(f"  - 🔎 发现 {len(issues_to_fill)} 条记录需要回填。")
         all_history = self.db.get_latest_lottery_history(limit=10000)
 
         for i, issue_str in enumerate(issues_to_fill):
             print(f"\n--- 正在处理期号: {issue_str} ({i + 1}/{len(issues_to_fill)}) ---")
-            history_for_run = [d for d in all_history if int(d.period_number) < int(issue_str)]
-            if len(history_for_run) < 20: continue
 
-            final_report = self.engine.generate_final_recommendation(history_for_run)
+            # 找到当前期号在历史数据中的索引
+            try:
+                current_index = next(i for i, draw in enumerate(all_history) if draw.period_number == issue_str)
+            except StopIteration:
+                print(f"  - ⚠️ 警告: 在加载的历史数据中找不到期号 {issue_str}，跳过。")
+                continue
+
+            history_for_run = all_history[:current_index]
+
+            if len(history_for_run) < 20:
+                print(f"  - ⏸️  跳过: 期号 {issue_str} 的前置历史数据不足20期。")
+                continue
+
+            final_report = engine.generate_final_recommendation(
+                history_data=history_for_run
+            )
             analysis_basis_json = json.dumps(final_report, ensure_ascii=False)
 
-            update_query = "UPDATE algorithm_recommendation SET analysis_basis = %s WHERE period_number = %s"
+            update_query = "UPDATE algorithm_recommendation SET analysis_basis = %s WHERE period_number = %s AND (analysis_basis IS NULL OR analysis_basis = '' OR analysis_basis = '{}')"
             self.db.execute_update(update_query, (analysis_basis_json, issue_str))
-            print(f"  - ✅ 成功写入期号 {issue_str} 的分析数据。")
+            print(f"  - ✅ 成功回填期号 {issue_str} 的分析数据。")
 
-    def run_learning_from_history(self):
+    # --- 这是您需要的完整函数 ---
+    def populate_number_statistics(self):
         """
-        运行完整的历史学习流程（调用回测脚本的逻辑）。
+        从 lottery_history 计算并填充 number_statistics 表的完整方法。
         """
-        print("\n" + "=" * 50)
-        print("🧠 开始从历史中学习性能权重...")
-        print("=" * 50)
-        # 这里我们直接调用 run_backtest_simulation.py 的核心类
-        # 为了简单，这里只打印提示信息，实际调用由 main.py 发起
-        print("请运行 'python run_backtest_simulation.py --auto' 来执行此操作。")
-        print("在未来的版本中，可以将 BacktestRunner 类导入并在此处直接调用。")
-
-    def _populate_number_statistics(self):
-        """填充 number_statistics 表。"""
-        print("\n--- 正在填充 [number_statistics] 表 ---")
+        print("  - [Orchestrator] 开始计算并填充号码统计数据（冷启动）...")
         try:
-            history_dao = self.db.get_dao('LotteryHistoryDAO')
-            all_history = history_dao.get_lottery_history(limit=10000)
-            if not all_history:
-                print("❌ `lottery_history` 为空。")
+            # 1. 获取所有历史数据，按期号升序排列
+            all_history_raw = self.db.execute_query("SELECT * FROM lottery_history ORDER BY period_number ASC")
+            if not all_history_raw:
+                print("    - ⚠️ 历史数据为空，无法进行统计填充。")
                 return
 
-            front_counts = Counter(num for draw in all_history for num in draw.front_area)
-            back_counts = Counter(num for draw in all_history for num in draw.back_area)
-            total_draws = len(all_history)
+            total_draws = len(all_history_raw)
+            print(f"    - 发现 {total_draws} 期历史数据用于统计分析。")
 
-            self.db.execute_update("DELETE FROM number_statistics")
+            # 2. 初始化数据结构
+            front_numbers_range = range(1, 36)
+            back_numbers_range = range(1, 13)
 
+            # 用于统计出现次数
+            front_counts = Counter()
+            back_counts = Counter()
+
+            # 用于统计遗漏值
+            front_omissions = {num: 0 for num in front_numbers_range}
+            back_omissions = {num: 0 for num in back_numbers_range}
+            front_max_omission = defaultdict(int)
+            back_max_omission = defaultdict(int)
+            front_omission_history = defaultdict(list)
+            back_omission_history = defaultdict(list)
+
+            # 3. 遍历所有历史数据进行计算
+            for draw in all_history_raw:
+                # 提取当期号码
+                current_front = {draw[f'front_area_{i + 1}'] for i in range(5)}
+                current_back = {draw[f'back_area_{i + 1}'] for i in range(2)}
+
+                # 更新出现次数
+                front_counts.update(current_front)
+                back_counts.update(current_back)
+
+                # 更新遗漏值
+                for num in front_numbers_range:
+                    if num in current_front:
+                        front_omission_history[num].append(front_omissions[num])
+                        front_omissions[num] = 0
+                    else:
+                        front_omissions[num] += 1
+                        front_max_omission[num] = max(front_max_omission[num], front_omissions[num])
+
+                for num in back_numbers_range:
+                    if num in current_back:
+                        back_omission_history[num].append(back_omissions[num])
+                        back_omissions[num] = 0
+                    else:
+                        back_omissions[num] += 1
+                        back_max_omission[num] = max(back_max_omission[num], back_omissions[num])
+
+            # 4. 准备批量插入的数据
             stats_to_insert = []
-            for num in range(1, 36): stats_to_insert.append(
-                ('front', num, front_counts.get(num, 0), round(front_counts.get(num, 0) / total_draws, 6)))
-            for num in range(1, 13): stats_to_insert.append(
-                ('back', num, back_counts.get(num, 0), round(back_counts.get(num, 0) / total_draws, 6)))
 
-            query = "INSERT INTO number_statistics (number_type, number_value, frequency, appearance_rate) VALUES (%s, %s, %s, %s)"
-            # 假设您有一个批量插入的方法
-            self.db.get_dao('NumberStatisticsDAO').execute_many(query, stats_to_insert)
-            print(f"✅ 成功填充 number_statistics。")
-        except Exception as e:
-            print(f"❌ 填充 number_statistics 时出错: {e}")
+            # 处理前区号码
+            for num in front_numbers_range:
+                appearances = front_counts.get(num, 0)
+                omission_hist = front_omission_history.get(num, [0])
+                stats_to_insert.append({
+                    'number': num,
+                    'number_type': 'front',
+                    'total_appearances': appearances,
+                    'appearance_rate': round(appearances / total_draws, 4) if total_draws > 0 else 0,
+                    'current_omission': front_omissions[num],
+                    'max_omission': front_max_omission[num],
+                    'avg_omission': round(sum(omission_hist) / len(omission_hist), 2) if omission_hist else 0,
+                })
 
-    def _populate_algorithm_configs(self):
-        """填充 algorithm_configs 表。"""
-        print("\n--- 正在填充 [algorithm_configs] 表 ---")
-        default_configs = [
-            ('FrequencyAnalysisAlgorithm', 'statistical', '{"lookback_period": 100}', True),
-            ('HotColdNumberAlgorithm', 'statistical', '{"hot_count": 5, "cold_count": 5}', True),
-            # ... 其他算法 ...
-            ('DynamicEnsembleOptimizer', 'meta', '{}', True)
-        ]
-        try:
-            self.db.execute_update("DELETE FROM algorithm_configs")
-            query = "INSERT INTO algorithm_configs (algorithm_name, algorithm_type, default_parameters, is_active) VALUES (%s, %s, %s, %s)"
-            self.db.get_dao('AlgorithmConfigDAO').execute_many(query, default_configs)
-            print(f"✅ 成功填充 algorithm_configs。")
+            # 处理后区号码
+            for num in back_numbers_range:
+                appearances = back_counts.get(num, 0)
+                omission_hist = back_omission_history.get(num, [0])
+                stats_to_insert.append({
+                    'number': num,
+                    'number_type': 'back',
+                    'total_appearances': appearances,
+                    'appearance_rate': round(appearances / total_draws, 4) if total_draws > 0 else 0,
+                    'current_omission': back_omissions[num],
+                    'max_omission': back_max_omission[num],
+                    'avg_omission': round(sum(omission_hist) / len(omission_hist), 2) if omission_hist else 0,
+                })
+
+            # 5. 执行数据库操作：先清空，再批量插入
+            print("    - 正在清空旧的号码统计数据...")
+            self.db.execute_update("TRUNCATE TABLE number_statistics")
+
+            print(f"    - 正在批量插入 {len(stats_to_insert)} 条新的统计记录...")
+            for stats_data in stats_to_insert:
+                self.db.execute_insert('number_statistics', stats_data)
+
+            print("  - ✅ [Orchestrator] 号码统计数据填充成功！")
+
         except Exception as e:
-            print(f"❌ 填充 algorithm_configs 时出错: {e}")
+            print(f"  - ❌ [Orchestrator] 填充号码统计数据时发生严重错误: {e}")
+            import traceback
+            traceback.print_exc()

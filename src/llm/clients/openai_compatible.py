@@ -1,28 +1,24 @@
-# src/llm/clients/openai_compatible.py
-# 为所有兼容OpenAI SDK的API（如通义千问、GPT系列）提供具体实现
-
+# 文件: src/llm/clients/openai_compatible.py
 from openai import OpenAI
-from src.llm.bash import AbstractLLMClient
+from src.llm.bash import AbstractLLMClient # 假设基类在这里
 
 class OpenAICompatibleClient(AbstractLLMClient):
-    """
-    适用于OpenAI、通义千问等兼容OpenAI API格式的模型客户端。
-    """
-    def generate(self, system_prompt: str, user_prompt: str) -> str:
+    def __init__(self, api_key: str, base_url: str, model_name: str, **kwargs):
+        if not api_key: raise ValueError("API key is required")
+        config_for_parent = {'api_key': api_key, 'base_url': base_url, 'model_name': model_name, **kwargs}
+        super().__init__(model_name=model_name, config=config_for_parent)
+        self.client = OpenAI(api_key=api_key, base_url=base_url)
+        self.supports_json_mode = kwargs.get('supports_json_mode', False)
+
+    def generate(self, system_prompt: str, user_prompt: str, json_mode: bool = False) -> str:
+        messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}]
+        request_params = {"model": self.model_name, "messages": messages, "temperature": 0.5}
+        if json_mode and self.supports_json_mode:
+            print("    - ✨ 启用原生JSON模式进行API调用。")
+            request_params["response_format"] = {"type": "json_object"}
         try:
-            print(f"🧠 [OpenAI-Compatible] Calling model: {self.model_name}...")
-            client = OpenAI(
-                api_key=self.config["api_key"],
-                base_url=self.config.get("base_url"),
-            )
-            completion = client.chat.completions.create(
-                model=self.model_name,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-            )
-            return completion.choices[0].message.content
+            completion = self.client.chat.completions.create(**request_params)
+            return completion.choices[0].message.content.strip()
         except Exception as e:
-            print(f"❌ [OpenAI-Compatible] Error calling {self.model_name}: {e}")
-            return f"Error: Could not get a response from {self.model_name}."
+            print(f"    - ❌ OpenAI API调用失败: {e}")
+            return f'{{"error": "API call failed", "details": "{str(e)}"}}'
