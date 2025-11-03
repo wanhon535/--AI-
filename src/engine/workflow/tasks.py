@@ -114,7 +114,7 @@ class PredictionTask(BaseTask):
             base_scorers = [AlgoClass() for name, AlgoClass in AVAILABLE_ALGORITHMS.items() if
                             name != "DynamicEnsembleOptimizer"]
             if not base_scorers: return {}
-            fusion_algorithm = DynamicEnsembleOptimizer(base_algorithms=base_scorers)
+            fusion_algorithm = DynamicEnsembleOptimizer(base_algorithms=base_scorers, db_manager=self.db)
             engine = RecommendationEngine(base_scorers=base_scorers, fusion_algorithm=fusion_algorithm)
             fused_report = engine.generate_fused_recommendation(history_data)
             return {"DynamicEnsembleOptimizer": fused_report}

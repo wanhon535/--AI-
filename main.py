@@ -24,10 +24,10 @@ from src.engine.algorithm_factory import create_algorithms_from_db
 DB_CONFIG = DatabaseConfig.get_config()
 
 MODELS_TO_RUN = [
-    "qwen3-max"
-    # "gpt-4o" # 将来要用时取消注释
-    # "gemini-2.5-flash"
-    # "deepseek-chat"
+    "qwen3-max",
+    "gpt-4o" ,# 将来要用时取消注释
+    "gemini-2.5-flash",
+    "deepseek-chat"
 ]
 
 
