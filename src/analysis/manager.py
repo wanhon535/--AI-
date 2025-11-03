@@ -104,6 +104,7 @@ def process_opencodes(data_list):
         processed_list.append(item)
 
     return processed_list
+
 def save_data_for_ai(data, filename=DATA_FILENAME):
     """
     将结构化数据保存为 Markdown 格式，保持原有格式并在顶部添加新数据。
@@ -234,37 +235,25 @@ def get_latest_lottery_data(size=1):
         print("无法解析 JSON 响应。")
 
     return []
+
 def update_lottery_data():
     """
     更新彩票数据，只添加新的不重复记录（不会替换现有数据）
     """
-    # 获取最新的1条记录来检查是否有更新
-    latest_data = get_latest_lottery_data(1)
+    # 直接获取更多数据（比如5条）来检查更新，避免多次请求
+    latest_data = get_latest_lottery_data(5)
 
     if not latest_data:
         print("无法获取最新数据，更新失败。")
         return False
 
-    latest_record = latest_data[0]
-    latest_expect = latest_record.get('expect')
-
     # 加载现有数据
     existing_data = load_existing_data()
-
-    # 检查最新期号是否已存在（统一转换为字符串进行比较）
     existing_expects = {str(item.get('expect')) for item in existing_data}
-
-    if str(latest_expect) in existing_expects:
-        print(f"最新期号 {latest_expect} 已存在，无需更新。")
-        return False
-
-    # 获取更多数据以确保不会遗漏
-    print("发现新期号，正在获取更多数据...")
-    more_data = get_latest_lottery_data(5)  # 只获取最近5条记录，避免获取过多历史数据
 
     # 找出新增的记录
     new_records = []
-    for record in more_data:
+    for record in latest_data:
         expect = record.get('expect')
         if str(expect) not in existing_expects:
             new_records.append(record)
@@ -272,14 +261,13 @@ def update_lottery_data():
 
     if new_records:
         # 合并数据并重新保存
-        combined_data = existing_data + new_records  # 注意：这里使用 + 而不是 +=，确保顺序正确
+        combined_data = existing_data + new_records
         save_data_for_ai(combined_data)
         print(f"成功添加 {len(new_records)} 条新记录。")
         return True
     else:
         print("未发现新记录。")
         return False
-
 
 def initial_fetch():
     """
@@ -319,7 +307,6 @@ def initial_fetch():
         print(f"请求发生错误: {e}")
     except json.JSONDecodeError:
         print("无法解析 JSON 响应。")
-
 
 def main():
     """
