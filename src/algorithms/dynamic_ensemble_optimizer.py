@@ -20,6 +20,19 @@ class DynamicEnsembleOptimizer(BaseAlgorithm):
             'min_weight': 0.05
         }
 
+    def calculate_dynamic_weights(self, algorithm_performance):
+        """基于算法性能动态计算权重"""
+        weights = {}
+        total_performance = sum(algorithm_performance.values())
+
+        for algo_name, performance in algorithm_performance.items():
+            # 基础权重 + 性能加成
+            base_weight = 1.0 / len(algorithm_performance)
+            performance_bonus = performance / total_performance
+            weights[algo_name] = base_weight * 0.3 + performance_bonus * 0.7
+
+        return weights
+
     # ... train 和 predict 方法保持不变 ...
     def train(self, history_data: List[LotteryHistory]) -> bool:
         if not self.base_algorithms or len(history_data) < 50:

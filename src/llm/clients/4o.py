@@ -1,32 +1,24 @@
 import json
 import requests
+import pandas as pd
 from datetime import datetime
 import sys
 import os
-from typing import Dict, List, Any
 
 # 添加配置文件路径
 sys.path.append('E:/pyhton/AI/AICp/src/llm')
-try:
-    from src.llm.config import MODEL_CONFIG
-except ImportError:
-    # 如果导入失败，尝试其他路径
-    sys.path.append('E:/python/AI/AICp/src/llm')
-    from src.llm.config import MODEL_CONFIG
+from src.llm.config import MODEL_CONFIG
 
 
-class PromptBasedAdvancedPredictor:
+class DltAdvancedAnalyzer:
     def __init__(self):
         """
-        初始化基于提示词的高级预测器
+        初始化大乐透高级分析器
         """
-        # 使用DeepSeek配置
-        self.model_config = MODEL_CONFIG.get("deepseek-chat", {})
+        self.model_config = MODEL_CONFIG.get("gpt-4o", {})
         self.api_key = self.model_config.get("api_key")
-        self.base_url = self.model_config.get("base_url", "https://api.deepseek.com/v1")
-        self.model = self.model_config.get("model_name", "deepseek-chat")
-
-
+        self.base_url = self.model_config.get("base_url")
+        self.model = "gpt-4o"
 
         self.headers = {
             "Content-Type": "application/json",
@@ -36,7 +28,7 @@ class PromptBasedAdvancedPredictor:
         # 加载历史数据
         self.history_data = self.load_history_data()
 
-        print(f"✅ 基于提示词的高级预测器初始化完成，加载了 {len(self.history_data)} 期历史数据")
+        print(f"✅ 分析器初始化完成，加载了 {len(self.history_data)} 期历史数据")
 
     def load_history_data(self):
         """
@@ -48,14 +40,56 @@ class PromptBasedAdvancedPredictor:
             return data
         except Exception as e:
             print(f"❌ 加载历史数据失败: {e}")
-            # 尝试其他路径
-            try:
-                with open('E:/python/AI/AICp/src/analysis/dlt_history_data.json', 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                return data
-            except Exception as e2:
-                print(f"❌ 备用路径也失败: {e2}")
-                return []
+            return []
+
+    def get_next_period_info(self):
+        """
+        获取下一期预测信息
+        """
+        if not self.history_data:
+            return None, None
+
+        # 获取最近一期数据
+        latest_data = self.history_data[-1]
+        latest_period = latest_data['expect']
+        latest_time = latest_data['time']
+
+        # 计算下一期（假设期号是连续的）
+        try:
+            next_period = str(int(latest_period) + 1)
+            # 假设开奖时间间隔为2-3天
+            latest_date = datetime.strptime(latest_time.split()[0], "%Y-%m-%d")
+            next_date = latest_date.replace(day=latest_date.day + 2)
+            next_time = next_date.strftime("%Y-%m-%d") + " 21:25:00"
+        except:
+            next_period = "下一期"
+            next_time = "近期"
+
+        return next_period, next_time
+
+    def prepare_recent_data(self, num_periods=100):
+        """
+        准备最近N期的数据用于分析
+        """
+        if not self.history_data:
+            return "无历史数据"
+
+        recent_data = self.history_data[-num_periods:]
+        formatted_data = []
+
+        for item in recent_data:
+            formatted_data.append({
+                "期号": item['expect'],
+                "开奖时间": item['time'],
+                "前区号码": item['frontArea'],
+                "后区号码": item['backArea'],
+                "和值": item['frontArea_Sum'],
+                "奇偶比": item['frontArea_OddEven'],
+                "是否有连号": item['frontArea_IsConsecutive'],
+                "跨度": item['frontArea_Span']
+            })
+
+        return formatted_data
 
     def prepare_simple_data_summary(self):
         """
@@ -95,9 +129,9 @@ class PromptBasedAdvancedPredictor:
 
         return data_summary
 
-    def call_advanced_prompt_analysis(self, prompt: str, max_retries: int = 3) -> Dict:
+    def call_gpt4o_advanced_analysis(self, prompt: str) -> dict:
         """
-        调用基于提示词的高级分析
+        调用GPT-4o进行高级分析
         """
         payload = {
             "model": self.model,
@@ -119,87 +153,60 @@ class PromptBasedAdvancedPredictor:
                     "content": prompt
                 }
             ],
-            "temperature": 0.2,
-            "max_tokens": 16000,  # 大幅增加token限制以容纳详细算法描述
-            "stream": False
+            "temperature": 0.2,  # 较低温度保证稳定性
+            "max_tokens": 16000,  # 增加token限制以容纳详细分析
+            "response_format": {"type": "json_object"}
         }
 
-        for attempt in range(max_retries):
-            try:
-                print(f"🔄 第{attempt + 1}次调用API进行高级算法模拟...")
+        try:
+            print("🔄 步骤1: 开始调用GPT-4o进行深度分析...")
+            print(f"   📡 请求地址: {self.base_url}")
+            print(f"   🔑 使用模型: {self.model}")
+            print(f"   📊 提示词长度: {len(prompt)} 字符")
 
-                start_time = datetime.now()
-                response = requests.post(
-                    f"{self.base_url}/chat/completions",
-                    headers=self.headers,
-                    json=payload,
-                    timeout=180
-                )
-                end_time = datetime.now()
-                request_duration = (end_time - start_time).total_seconds()
+            start_time = datetime.now()
+            response = requests.post(
+                f"{self.base_url}/chat/completions",
+                headers=self.headers,
+                json=payload,
+                timeout=180  # 增加超时时间
+            )
+            end_time = datetime.now()
+            request_duration = (end_time - start_time).total_seconds()
 
-                print(f"   ⏱️  请求耗时: {request_duration:.2f}秒")
-                print(f"   📨 响应状态: {response.status_code}")
+            print(f"   ⏱️  API请求耗时: {request_duration:.2f}秒")
+            print(f"   📨 响应状态码: {response.status_code}")
 
-                if response.status_code == 200:
-                    result = response.json()
-                    content = result["choices"][0]["message"]["content"]
+            if response.status_code == 200:
+                result = response.json()
+                content = result["choices"][0]["message"]["content"]
+                print("   ✅ API调用成功，开始解析返回内容...")
 
-                    try:
-                        parsed_result = json.loads(content)
-                        print("   ✅ JSON解析成功")
-                        return parsed_result
-                    except json.JSONDecodeError as e:
-                        print(f"   ❌ JSON解析失败: {e}")
-                        # 尝试修复JSON
-                        try:
-                            content = self.fix_json_format(content)
-                            parsed_result = json.loads(content)
-                            print("   ✅ JSON修复成功")
-                            return parsed_result
-                        except:
-                            if attempt < max_retries - 1:
-                                print("   🔄 重新尝试调用...")
-                                continue
-                            else:
-                                return {"error": "JSON解析失败", "raw_content": content[:1000]}
+                # 解析JSON内容
+                parsed_result = json.loads(content)
+                print(f"   📋 返回数据结构: {list(parsed_result.keys())}")
 
-                else:
-                    print(f"   ❌ API调用失败: {response.status_code}")
-                    if attempt < max_retries - 1:
-                        print("   🔄 重新尝试调用...")
-                        continue
+                return parsed_result
+            else:
+                print(f"   ❌ API调用失败: {response.status_code}")
+                print(f"   🔍 错误详情: {response.text[:500]}...")
+                return {"error": f"API调用失败: {response.status_code}", "details": response.text}
 
-            except Exception as e:
-                print(f"   ❌ 请求异常: {e}")
-                if attempt < max_retries - 1:
-                    print("   🔄 重新尝试调用...")
-                    continue
+        except json.JSONDecodeError as e:
+            print(f"   ❌ JSON解析错误: {e}")
+            if 'content' in locals():
+                print(f"   📄 原始返回内容: {content[:500]}...")
+            return {"error": "JSON解析失败", "details": str(e)}
+        except Exception as e:
+            print(f"   ❌ 调用过程中出错: {e}")
+            import traceback
+            print(f"   🔍 详细错误信息: {traceback.format_exc()}")
+            return {"error": "请求异常", "details": str(e)}
 
-        return {"error": "所有重试尝试均失败"}
-
-    def fix_json_format(self, content: str) -> str:
+    def generate_detailed_analysis_prompt(self, data_summary: dict, next_period: str, next_time: str) -> str:
         """
-        修复JSON格式
+        生成详细分析提示词，包含算法过程和多种组合
         """
-        content = content.replace("'", '"')
-        content = content.replace("True", "true").replace("False", "false")
-        content = content.replace("None", "null")
-
-        # 尝试找到JSON开始和结束位置
-        start_idx = content.find('{')
-        end_idx = content.rfind('}') + 1
-
-        if start_idx != -1 and end_idx != 0:
-            return content[start_idx:end_idx]
-
-        return content
-
-    def generate_advanced_algorithm_prompt(self, data_summary: Dict, next_period: str) -> str:
-        """
-        生成包含完整算法描述的提示词
-        """
-        # 修复f-string中的数学公式问题，使用转义
         prompt = f"""
 # 大乐透高级算法预测分析
 ## 预测目标：第{next_period}期大乐透
@@ -513,43 +520,49 @@ E[收益] = ∑ 中奖概率 × 中奖金额 - 成本
 
         return prompt
 
-    def run_prompt_based_analysis(self):
+    def analyze_dlt_comprehensive(self):
         """
-        运行基于提示词的高级分析
+        执行大乐透综合分析
         """
-        print("🚀 启动基于提示词的高级算法分析...")
+        print("🎯 开始大乐透高级分析流程...")
         print("=" * 60)
 
         # 获取下一期信息
-        next_period = self.get_next_period()
-        print(f"🎯 预测目标: 第{next_period}期")
+        print("📅 步骤1: 确定预测目标期号...")
+        next_period, next_time = self.get_next_period_info()
+        if not next_period:
+            print("❌ 错误: 无法确定下一期信息")
+            return {"status": "error", "message": "无法确定下一期信息"}
 
-        # 准备数据摘要
-        print("📊 准备数据摘要...")
+        print(f"   🎯 预测目标: 第{next_period}期 ({next_time})")
+
+        # 准备历史数据
+        print("📂 步骤2: 加载历史数据...")
         data_summary = self.prepare_simple_data_summary()
         if not data_summary:
-            return {"status": "error", "message": "数据准备失败"}
+            print("❌ 错误: 没有可用的历史数据")
+            return {"status": "error", "message": "无历史数据"}
 
-        print("✅ 数据摘要准备完成")
+        print(f"   ✅ 数据加载完成，共{data_summary['periods_analyzed']}期历史数据")
 
-        # 生成包含完整算法的提示词
-        print("📝 生成包含高级算法的提示词...")
-        prompt = self.generate_advanced_algorithm_prompt(data_summary, next_period)
-        print(f"   📋 提示词长度: {len(prompt)} 字符")
+        # 生成详细提示词
+        print("\n📝 步骤3: 生成详细分析提示词...")
+        prompt = self.generate_detailed_analysis_prompt(data_summary, next_period, next_time)
+        print(f"   ✅ 提示词生成完成，长度: {len(prompt)} 字符")
 
-        # 调用API进行算法模拟分析
-        print("\n🤖 调用API模拟高级算法运行...")
-        print("   将在AI内部模拟运行以下算法:")
+        # 调用API进行分析
+        print("\n🤖 步骤4: 调用GPT-4o进行深度算法分析...")
+        print("   正在应用以下算法:")
         print("   1. 贝叶斯结构时间序列 (BSTS) - 状态空间建模 + MCMC")
         print("   2. 因果森林 + 双重机器学习 - 因果推断 + 去偏")
         print("   3. LSTM-Transformer混合模型 - 深度学习序列预测")
         print("   4. 高斯过程回归 (GPR) - 贝叶斯非参数建模")
         print("   5. 集成因果推断 - 元学习器集成")
 
-        result = self.call_advanced_prompt_analysis(prompt)
+        result = self.call_gpt4o_advanced_analysis(prompt)
 
         if result and "error" not in result:
-            print("\n📊 处理算法模拟结果...")
+            print("\n📊 步骤5: 处理分析结果...")
             self.display_algorithm_results(result, next_period)
             save_result = self.save_algorithm_results(result)
 
@@ -560,29 +573,21 @@ E[收益] = ∑ 中奖概率 × 中奖金额 - 成本
                 "save_status": save_result,
                 "timestamp": datetime.now().isoformat()
             }
-            print("🎉 高级算法模拟分析完成!")
+            print("🎉 综合分析流程完成!")
             return final_result
         else:
-            error_msg = result.get("error", "分析失败") if result else "API调用失败"
-            print(f"❌ 分析失败: {error_msg}")
+            error_msg = result.get("error", "未知错误") if result else "分析失败"
+            print(f"❌ 分析流程失败: {error_msg}")
+
             return {
                 "status": "error",
                 "message": error_msg,
                 "prediction_period": next_period,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
+                "details": result.get("details") if result else "未知错误"
             }
 
-    def get_next_period(self):
-        """获取下一期期号"""
-        if not self.history_data:
-            return "下一期"
-        latest_period = self.history_data[-1]['expect']
-        try:
-            return str(int(latest_period) + 1)
-        except:
-            return "下一期"
-
-    def display_algorithm_results(self, result: Dict, next_period: str):
+    def display_algorithm_results(self, result: dict, next_period: str):
         """
         显示算法模拟结果
         """
@@ -664,17 +669,17 @@ E[收益] = ∑ 中奖概率 × 中奖金额 - 成本
 
         print("=" * 80)
 
-    def save_algorithm_results(self, result: Dict):
+    def save_algorithm_results(self, result: dict):
         """
         保存算法模拟结果
         """
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"algorithm_simulation_results_{timestamp}.json"
+        filename = f"dlt_detailed_analysis_{timestamp}.json"
 
         try:
             with open(filename, 'w', encoding='utf-8') as f:
                 json.dump(result, f, ensure_ascii=False, indent=2)
-            print(f"💾 算法模拟结果已保存到: {filename}")
+            print(f"💾 详细分析结果已保存到: {filename}")
             return {"status": "success", "filename": filename}
         except Exception as e:
             print(f"❌ 保存结果失败: {e}")
@@ -683,24 +688,24 @@ E[收益] = ∑ 中奖概率 × 中奖金额 - 成本
 
 # 使用示例
 def main():
-    # 初始化基于提示词的预测器
-    print("🚀 初始化基于提示词的高级预测器...")
-    predictor = PromptBasedAdvancedPredictor()
+    # 初始化分析器
+    print("🚀 初始化大乐透高级分析器...")
+    analyzer = DltAdvancedAnalyzer()
 
-    # 运行高级分析
+    # 执行综合分析
     print("\n" + "=" * 60)
-    final_result = predictor.run_prompt_based_analysis()
+    final_result = analyzer.analyze_dlt_comprehensive()
 
-    # 输出最终结果
-    print("\n📋 最终执行结果:")
-    print(f"   状态: {final_result.get('status', 'unknown')}")
+    # 返回最终结果
+    print("\n📋 最终执行结果汇总:")
+    print(f"   执行状态: {final_result.get('status', 'unknown')}")
     if final_result.get('status') == 'success':
         print(f"   预测期号: {final_result.get('prediction_period')}")
-        save_status = final_result.get('save_status', {})
-        if isinstance(save_status, dict):
-            print(f"   保存文件: {save_status.get('filename', 'N/A')}")
+        print(f"   保存状态: {final_result.get('save_status', {}).get('status')}")
+        print(f"   文件路径: {final_result.get('save_status', {}).get('filename')}")
     else:
         print(f"   错误信息: {final_result.get('message')}")
+        print(f"   详细错误: {final_result.get('details')}")
 
     return final_result
 

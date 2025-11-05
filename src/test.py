@@ -1,138 +1,239 @@
-# test.py (位于项目根目录)
+# test_intelligent_pattern_recognizer.py
+import sys
+import os
 
-import json
-import random
-from typing import List, Dict, Any
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# --------------------------------------------------------------------------
-# 1. 导入您需要测试的函数和它依赖的类
-#    我们使用相对导入，因为 test.py 在根目录，可以访问 src 包
-# --------------------------------------------------------------------------
-from src.prompt_templates import build_lotto_pro_prompt_v14_omega
-from src.model.lottery_models import LotteryHistory
+from src.database.database_manager import DatabaseManager
+from src.config.database_config import DB_CONFIG
+
+# 尝试导入智能模式识别器
+try:
+    from src.algorithms.intelligent_pattern_recognizer import IntelligentPatternRecognizer
+
+    PATTERN_AVAILABLE = True
+except ImportError as e:
+    print(f"❌ 无法导入智能模式识别器: {e}")
+    PATTERN_AVAILABLE = False
 
 
-# --------------------------------------------------------------------------
-# 2. 创建一个辅助函数来生成逼真的模拟数据
-#    这是测试中最关键的部分，确保输入数据的格式和类型正确
-# --------------------------------------------------------------------------
-def generate_mock_data() -> Dict[str, Any]:
-    """生成一组用于测试 V14.5 Prompt 的完整模拟数据。"""
+def test_intelligent_pattern_recognizer():
+    """测试智能模式识别器"""
+    print("=== 测试智能模式识别器 ===")
 
-    print(" MOCK: Generating mock data for the test...")
+    if not PATTERN_AVAILABLE:
+        print("❌ 智能模式识别器不可用，请先实现该算法")
+        create_pattern_recognition_demo()
+        return
 
-    # a. 模拟最近的开奖历史 (List[LotteryHistory])
-    recent_draws = [
-        LotteryHistory(
-            period_number='2025121',
-            front_area=[2, 8, 15, 22, 31],
-            back_area=[3, 10]
-        ),
-        LotteryHistory(
-            period_number='2025120',
-            front_area=[5, 11, 19, 21, 34],
-            back_area=[6, 7]
-        ),
-        LotteryHistory(
-            period_number='2025119',
-            front_area=[1, 9, 10, 25, 33],
-            back_area=[1, 11]
-        )
-    ]
+    # 创建预测器实例
+    predictor = IntelligentPatternRecognizer()
+    print(f"算法名称: {predictor.name}")
+    print(f"版本: {predictor.version}")
 
-    # b. 模拟各个算法模型的输出 (Dict[str, Any])
-    #    注意：这里的内部结构可以简化，因为Prompt本身不解析深层内容，只关心键的存在。
-    model_outputs = {
-        'bayesian': {'top_picks': [2, 11, 22, 31], 'confidence': 0.7},
-        'markov': {'transitions': {'5': 19, '11': 2}, 'confidence': 0.6},
-        'graph': {'communities': [[1, 9, 10], [25, 33]], 'confidence': 0.65},
-        'neural': {'heatmap': {'8': 0.08, '23': 0.07}, 'confidence': 0.8},
-        'hit_optimizer': {'optimized_set': [8, 15, 21, 23, 34], 'expected_hits': 1.2},
-        'ensemble': {'final_recommendation': [2, 8, 21, 22, 33], 'confidence': 0.85},
-        'backtest': {'avg_hits': 1.1, 'win_rate': 0.2}
-    }
+    try:
+        # 从数据库获取真实历史数据
+        print("\n1. 连接数据库并获取历史数据...")
+        db_manager = DatabaseManager(**DB_CONFIG)
 
-    # c. 模拟算法的历史表现日志 (Dict[str, float])
-    #    这些值将用于计算动态权重
-    performance_log = {
-        'bayesian': 0.78,
-        'markov': 0.45,
-        'graph': 0.65,
-        'neural': 0.85,
-        'hit_optimizer': 0.72,
-        'ensemble': 0.91
-    }
+        # 获取历史数据
+        history_data = db_manager.get_all_lottery_history(limit=200)
+        print(f"从数据库获取到 {len(history_data)} 条历史记录")
 
-    # d. 模拟用户的约束条件 (Dict[str, Any])
-    user_constraints = {
-        'max_bets': 4,
-        'budget': 200.0,
-        'risk_level': '激进'  # 这个字段在V14.5中被 risk_preference 参数替代
-    }
+        if not history_data:
+            print("❌ 数据库中没有历史数据，测试终止")
+            return
 
-    # e. 模拟上一期的复盘报告 (str)
-    last_performance_report = """
-    报告期号: 2025121
-    策略: "核心热号追击策略"
-    表现: 命中 前区1+后区1。
-    结论: 策略过于集中于追逐热号（22, 31），但当期冷号（2, 8, 15）反弹，导致命中率不佳。
-    经验教训: 单一策略风险敞口过大，需要引入对冲机制来平衡冷热号分布。
-    """
+        # 显示数据范围
+        if len(history_data) > 0:
+            first_period = history_data[0].period_number
+            last_period = history_data[-1].period_number
+            print(f"数据范围: 第{first_period}期 - 第{last_period}期")
 
-    print(" MOCK: Mock data generation complete.\n")
+        # 测试训练
+        print("\n2. 训练模式识别模型...")
+        train_success = predictor.train(history_data)
+        print(f"训练状态: {'✅ 成功' if train_success else '❌ 失败'}")
+        print(f"模型已训练: {predictor.is_trained}")
+
+        if not train_success:
+            print("❌ 训练失败，退出测试")
+            return
+
+        # 测试预测
+        print("\n3. 进行模式识别预测...")
+        result = predictor.predict(history_data)
+
+        if 'error' in result:
+            print(f"❌ 预测失败: {result['error']}")
+            return
+
+        # 检查结果结构
+        print("\n4. 检查预测结果:")
+        print(f"算法名称: {result.get('algorithm')}")
+        print(f"版本: {result.get('version')}")
+        print(f"置信度: {result.get('recommendations', [{}])[0].get('confidence', 'N/A')}")
+
+        # 显示前区号码评分
+        recommendations = result.get('recommendations', [{}])[0]
+        front_scores = recommendations.get('front_number_scores', [])
+        back_scores = recommendations.get('back_number_scores', [])
+
+        print(f"\n5. 前区号码模式识别评分 (前15个):")
+        for i, score_item in enumerate(front_scores[:15]):
+            print(f"  号码 {score_item['number']:2d}: 评分 {score_item['score']:.4f}")
+
+        print(f"\n6. 后区号码模式识别评分 (前8个):")
+        for i, score_item in enumerate(back_scores[:8]):
+            print(f"  号码 {score_item['number']:2d}: 评分 {score_item['score']:.4f}")
+
+        # 基本验证
+        print(f"\n7. 基本验证:")
+        print(f"前区号码数量: {len(front_scores)} (应为35)")
+        print(f"后区号码数量: {len(back_scores)} (应为12)")
+        print(f"评分范围正常: {all(0 <= item['score'] <= 1 for item in front_scores + back_scores)}")
+
+        # 分析模式特征
+        print(f"\n8. 模式特征分析:")
+        front_top5 = front_scores[:5]
+        back_top3 = back_scores[:3]
+
+        print("   前区最可能号码:")
+        for item in front_top5:
+            print(f"     号码 {item['number']}: 模式评分 {item['score']:.4f}")
+
+        print("   后区最可能号码:")
+        for item in back_top3:
+            print(f"     号码 {item['number']}: 模式评分 {item['score']:.4f}")
+
+        # 如果有模式识别相关信息，显示出来
+        analysis = result.get('analysis', {})
+        if 'pattern_analysis' in analysis:
+            pattern_info = analysis['pattern_analysis']
+            print(f"\n9. 模式识别信息:")
+            print(f"   发现的模式数量: {pattern_info.get('pattern_count', 'N/A')}")
+            print(f"   最强模式置信度: {pattern_info.get('strongest_pattern_confidence', 'N/A')}")
+
+            # 显示一些识别到的模式
+            if 'identified_patterns' in pattern_info:
+                patterns = pattern_info['identified_patterns'][:3]  # 显示前3个模式
+                print(f"   识别到的模式示例:")
+                for i, pattern in enumerate(patterns):
+                    print(f"     模式{i + 1}: {pattern.get('description', 'N/A')}")
+
+        print("\n=== 智能模式识别器测试完成 ===")
+
+        return result
+
+    except Exception as e:
+        print(f"❌ 测试过程中出现错误: {str(e)}")
+        import traceback
+        traceback.print_exc()
+
+
+def create_pattern_recognition_demo():
+    """创建模式识别演示"""
+    print("\n🔍 创建模式识别演示...")
+
+    try:
+        from src.database.database_manager import DatabaseManager
+        import numpy as np
+
+        db_manager = DatabaseManager(**DB_CONFIG)
+        history_data = db_manager.get_all_lottery_history(limit=100)
+
+        if len(history_data) < 20:
+            print("❌ 数据量不足，无法进行模式识别")
+            return
+
+        print(f"使用 {len(history_data)} 条记录进行模式识别分析")
+
+        # 简单演示：分析奇偶模式、大小模式、和值模式等
+        pattern_analysis = analyze_basic_patterns(history_data)
+
+        print("✅ 基础模式分析完成")
+        print(f"   常见奇偶比例: {pattern_analysis['common_parity_ratio']}")
+        print(f"   常见大小比例: {pattern_analysis['common_size_ratio']}")
+        print(f"   和值范围: {pattern_analysis['sum_range']}")
+
+        # 生成基于模式的预测
+        simulate_pattern_prediction(history_data, pattern_analysis)
+
+    except Exception as e:
+        print(f"❌ 模式识别演示失败: {e}")
+
+
+def analyze_basic_patterns(history_data):
+    """分析基础模式"""
+    parity_ratios = []
+    size_ratios = []
+    sums = []
+
+    for record in history_data:
+        # 奇偶比例
+        front_odd = sum(1 for num in record.front_area if num % 2 == 1)
+        parity_ratios.append(f"{front_odd}:{5 - front_odd}")
+
+        # 大小比例 (以18为界)
+        front_big = sum(1 for num in record.front_area if num > 18)
+        size_ratios.append(f"{front_big}:{5 - front_big}")
+
+        # 和值
+        sums.append(sum(record.front_area))
 
     return {
-        "recent_draws": recent_draws,
-        "model_outputs": model_outputs,
-        "performance_log": performance_log,
-        "user_constraints": user_constraints,
-        "last_performance_report": last_performance_report,
-        "next_issue_hint": "2025122",
-        "budget": 200.0,
-        "risk_preference": "激进"
+        'common_parity_ratio': max(set(parity_ratios), key=parity_ratios.count),
+        'common_size_ratio': max(set(size_ratios), key=size_ratios.count),
+        'sum_range': (min(sums), max(sums))
     }
 
 
-# --------------------------------------------------------------------------
-# 3. 主执行逻辑
-#    在这里，我们调用函数并打印结果
-# --------------------------------------------------------------------------
+def simulate_pattern_prediction(history_data, pattern_analysis):
+    """模拟基于模式的预测"""
+    print("\n🎯 模拟模式识别预测结果:")
+
+    # 基于常见模式生成预测
+    common_parity = pattern_analysis['common_parity_ratio']
+    common_size = pattern_analysis['common_size_ratio']
+
+    # 解析常见比例
+    odd_count = int(common_parity.split(':')[0])
+    big_count = int(common_size.split(':')[0])
+
+    # 根据模式选择号码（这里简化处理）
+    front_scores = []
+    for num in range(1, 36):
+        score = 0.0
+        # 如果奇偶比例需要奇数，且当前号码是奇数，则加分
+        if odd_count >= 3 and num % 2 == 1:
+            score += 0.3
+        elif odd_count <= 2 and num % 2 == 0:
+            score += 0.3
+
+        # 如果大小比例需要大数，且当前号码>18，则加分
+        if big_count >= 3 and num > 18:
+            score += 0.3
+        elif big_count <= 2 and num <= 18:
+            score += 0.3
+
+        # 基础分
+        score += 0.1
+
+        front_scores.append({'number': num, 'score': score})
+
+    back_scores = [{'number': i, 'score': 0.5} for i in range(1, 13)]
+
+    front_scores.sort(key=lambda x: x['score'], reverse=True)
+    back_scores.sort(key=lambda x: x['score'], reverse=True)
+
+    print("前区模式预测 (前10个):")
+    for item in front_scores[:10]:
+        print(f"  号码 {item['number']:2d}: {item['score']:.4f}")
+
+    print("后区模式预测 (前5个):")
+    for item in back_scores[:5]:
+        print(f"  号码 {item['number']:2d}: {item['score']:.4f}")
+
+
 if __name__ == "__main__":
-    print("=" * 50)
-    print("🚀  STARTING TEST FOR: build_lotto_pro_prompt_v14_omega")
-    print("=" * 50)
-
-    # 获取模拟数据
-    mock_data = generate_mock_data()
-
-    # 调用你的 V14.5 Prompt 生成函数
-    # 使用 **mock_data 将字典中的所有键值对作为参数传递给函数
-    print("📞  Calling the prompt generation function...")
-    generated_prompt, next_issue = build_lotto_pro_prompt_v14_omega(**mock_data)
-    print("✅  Prompt function executed successfully!\n")
-
-    # 打印结果以进行验证
-    print("-" * 50)
-    print("🔍  VERIFICATION OF OUTPUTS")
-    print("-" * 50)
-
-    print(f"\n[ NEXT ISSUE IDENTIFIED ]\n{next_issue}\n")
-
-    print("\n[ GENERATED PROMETHEUS-Ω PROMPT ]")
-    print("--- START OF PROMPT ---")
-    print(generated_prompt)
-    print("--- END OF PROMPT ---\n")
-
-    # 作为一个额外的健全性检查，我们可以尝试解析Prompt中包含的JSON模板
-    # 这有助于确保模板本身是有效的
-    try:
-        # 从Prompt末尾提取JSON模板字符串
-        json_template_str = generated_prompt.split("```json").split("```")[0].strip()
-        json.loads(json_template_str)
-        print("✅  Sanity Check: The JSON template within the prompt is valid.")
-    except Exception as e:
-        print(f"❌  Sanity Check FAILED: The JSON template within the prompt is invalid. Error: {e}")
-
-    print("\n=" * 50)
-    print("🏁  TEST COMPLETE")
-    print("=" * 50)
+    test_intelligent_pattern_recognizer()

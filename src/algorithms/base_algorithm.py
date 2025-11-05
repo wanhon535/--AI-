@@ -45,3 +45,16 @@ class BaseAlgorithm(ABC):
             'is_trained': self.is_trained,
             'parameters': self.parameters
         }
+
+    def _format_prediction_output(self, front_scores, back_scores, confidence, analysis=None):
+        """统一预测输出格式"""
+        return {
+            'algorithm': self.name,
+            'version': self.version,
+            'recommendations': [{
+                'front_number_scores': front_scores,
+                'back_number_scores': back_scores,
+                'confidence': confidence
+            }],
+            'analysis': analysis or {}
+        }

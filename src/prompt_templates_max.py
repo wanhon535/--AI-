@@ -1,190 +1,204 @@
-import json
-from typing import List, Tuple, Dict, Any
-from src.model.lottery_models import LotteryHistory
-import random  # 模拟MC/Tuner（真实用torch/numpy）
-def build_final_mandate_prompt(
-        recent_draws: List[LotteryHistory],
+# 文件: prompt_templates.py (新增或替换)
+from typing import Dict, Any, List, Tuple
+
+from src.prompt_templates_plas import LotteryHistory
+
+
+def build_quant_investment_prompt(
         model_outputs: Dict[str, Any],
-        performance_log: Dict[str, float],
-        user_constraints: Dict[str, Any] = None,
-        next_issue_hint: str = None,
-        last_performance_report: str = None,
-        budget: float = 100.0,
-        risk_preference: str = "中性",
-        senate_edict: str = None,      # 可选：外部edict，优先后台生
-        quant_proposal: str = None,    # 可选：外部A，优先后台
-        ml_briefing: str = None        # 可选：外部B，优先后台
+        recent_draws: List[LotteryHistory],
+        performance_log: Dict[str, Any],  # 新增: 算法的历史表现数据
+        next_issue_hint: str
 ) -> Tuple[str, str]:
     """
-    The Final Mandate — The one and only prompt. V1.1: 永寂帝国版。
-    哲学：后台全自动化（MC freq + VaR Tuner），前台绝对寂静（CoT隐链）。
-    - Senate: 动态edict/A/B（历史热 + 教训tweak），兼容algorithms/real_time_feedback_learner.py。
-    - 前台: 皇帝神谕融合，memo预言种子（下期权重）。
-    - 自检: 微调cost/E[Hits]/ROI，确保铁律（e_hits>=1.5）。
+    Prompt V5.1: 专业量化投研 (历史表现增强版)
+    - AI角色: 量化基金经理 (Quant PM)。
+    - 核心: 综合独立算法报告，并参考各算法的“历史战绩”，做出决策。
     """
-    # === 1. 基础数据准备 (兼容V14+ & database/lottery_history_dao.py) ===
-    latest_issue = "未知"
-    if recent_draws:
-        try:
-            latest_issue = str(max(int(d.period_number) for d in recent_draws if str(d.period_number).isdigit()))
-        except (ValueError, TypeError):
-            latest_issue = str(recent_draws[-1].period_number) if recent_draws else "未知"
 
-    next_issue = next_issue_hint or (str(int(latest_issue) + 1) if latest_issue.isdigit() else "下一期")
+    analyst_reports = []
+    for algo_name, output in model_outputs.items():
+        if algo_name == "DynamicEnsembleOptimizer": continue
 
-    draws_text = "\n".join([
-        f"- {d.period_number} | {' '.join(f'{n:02d}' for n in d.front_area)} + {' '.join(f'{n:02d}' for n in d.back_area)}"
-        for d in recent_draws[-8:]
-    ]) if recent_draws else "无历史数据"
+        recs = output.get('recommendations', [{}])[0]
+        front_scores = recs.get('front_number_scores', [])
+        back_scores = recs.get('back_number_scores', [])
 
-    perf_total = sum(performance_log.values()) if performance_log else 1
-    adaptive_weights = {k: v / perf_total for k, v in performance_log.items()} if performance_log else {}
+        # [新功能] 从 performance_log 中提取算法的历史表现
+        perf_summary = performance_log.get(algo_name, "历史表现数据暂无")
 
-    uc = user_constraints or {}
-    max_bets = uc.get("max_bets", 5)
+        report = f"""
+### 分析师: {algo_name}
+- **核心关注-前区 (Top 7)**: {[item['number'] for item in front_scores[:7]]}
+- **核心关注-后区 (Top 3)**: {[item['number'] for item in back_scores[:3]]}
+- **历史战绩**: {perf_summary}
+"""
+        analyst_reports.append(report)
 
-    # === 2. 后台Imperial Senate: 自动化蒸馏 (MC freq + VaR Tuner) ===
-    # Tuner: 从last_report学（ROI<0 tweak保守；风险偏好影响alloc）
-    roi_hint = 0.0
-    if last_performance_report and "ROI" in last_performance_report:
-        try:
-            roi_hint = float(last_performance_report.split("ROI")[1].split("%")[0].strip()) / 100
-        except:
-            pass
-    tuner_tweak = {
-        "cold_weight": 0.15 if roi_hint < 0 else 0.05,
-        "alloc_bias": "激进" if risk_preference == "激进" else ("保守" if risk_preference == "保守" else "中性")
-    }
+    investment_briefing = "\\n".join(analyst_reports)
+    recent_draws_str = ' | '.join(str(d.front_area) + '+' + str(d.back_area) for d in recent_draws[-8:])
 
-    # 提取真实热号freq（从recent_draws，简化counter；真实用pandas）
-    all_front = [n for d in recent_draws[-8:] for n in d.front_area]
-    all_back = [n for d in recent_draws[-8:] for n in d.back_area]
-    hot_front_candidates = list(set(all_front))[:7] or [6,9,14,20,26,27,30]  # 动态Top7
-    hot_back_candidates = list(set(all_back))[:3] or [1,2,4,8,9]  # Top3
-
-    # MC 1000路径（random.choice freq sim）
-    hot_front = [random.choice(hot_front_candidates) for _ in range(1000)]
-    hot_back = [random.choice(hot_back_candidates) for _ in range(1000)]
-    mc_insight = f"东境反弹三期(20-35 prob+18%)；沼泽冷(1-4)奇袭{sum(1 for b in hot_back if b <=4)/10:.0f}%路径"
-
-    # VaR sim（简化：95%损失<10%预算；真实scipy.stats.norm.ppf(0.95)）
-    var_95 = budget * 0.08  # 低风险阈
-
-    # 动态edict: 蒸馏MC + Tuner + VaR（三句，诗意微调）
-    strategy = "荣耀强攻" if roi_hint > 0 else ("警惕守护" if roi_hint < 0 else "平衡帝势")
-    alloc = f"80%锋锐+20%宁静" if tuner_tweak["alloc_bias"] == "激进" else ("50%稳固+50%对冲" if tuner_tweak["alloc_bias"] == "保守" else "70%锋锐+30%宁静")
-    default_edict = f"""陛下，星象显示，东境(大号区)将有为期三期的反弹({mc_insight})。量化军团的重装部队已准备就绪，但先知院警告，警惕后方的沼泽(后区冷号)出现奇袭。授权您执行'{strategy}'，预算内平衡{alloc}，VaR95%控{int(var_95)}元。"""
-    senate_edict = senate_edict or default_edict
-
-    # 动态A: Quant Legion（权重 + model_outputs融合；Sharpe sim）
-    front_a = sorted(hot_front_candidates)  # 动态热
-    back_a = sorted(hot_back_candidates[:3])
-    sharpe_a = 1.45 + (adaptive_weights.get("Bayesian", 0) * 0.1)
-    expected_hits_a = max(1.5, 2.1 + tuner_tweak["cold_weight"])  # >=1.5阈
-    default_quant = {
-        "portfolio": [{"type": "荣耀核心(7+3)", "cost": min(42.0, budget * 0.6), "front_numbers": front_a, "back_numbers": back_a,
-                       "sharpe": sharpe_a, "expected_hits": expected_hits_a, "role": "军团重装，锁定东境热区"}],
-        "summary": f"Sharpe>{sharpe_a:.2f}，覆盖Top热80%，ROI预+{max(0.01, 0.12 + roi_hint * 0.05):.2f}"
-    }
-    quant_proposal = quant_proposal or json.dumps(default_quant)
-
-    # 动态B: AI Oracle（pred_probs from model_outputs sim + Tuner）
-    default_ml = {
-        "trends": [f"东境反弹+18%", f"前区尾{hot_front_candidates[-1]}回归prob 0.095 (Tuner cold+{tuner_tweak['cold_weight']})"],
-        "risks": [f"后区沼泽冷(1-{min(hot_back_candidates)})奇袭预警"],
-        "pred_probs": {"front": {"9": 0.092, "27": 0.088}, "back": {"1": 0.105, "4": 0.098}},
-        "confidence": min(0.98, 0.94 + (abs(roi_hint) * 0.02))
-    }
-    ml_briefing = ml_briefing or json.dumps(default_ml)
-
-    # 自检微调（总cost/E[Hits]逻辑）
-    total_cost = default_quant["portfolio"][0]["cost"] + 10.0  # 核心+卫星
-    avg_e_hits = (expected_hits_a + 0.85 + tuner_tweak["cold_weight"]) / 2
-    fixes = []
-    if total_cost > budget:
-        default_quant["portfolio"][0]["cost"] *= 0.8
-        total_cost *= 0.8
-        fixes.append("cost_adjust: 砍卫星20%")
-    if avg_e_hits < 1.5:
-        expected_hits_a += 0.2  # 加冷tweak
-        fixes.append("e_hits_adjust: 加冷号0.2")
-    roi_ok = roi_hint > -0.05  # 预ROI>0阈
-
-    # === 3. 前台Prompt: 寂静王座（CoT隐链 + 动态） ===
     prompt = f"""
-# 👑 The Final Mandate :: The Emperor's Edict
+# 量化投资决策指令 :: 第 {next_issue_hint} 期
 
-## 【角色】
-你是帝国的皇帝。你的智慧，源于绝对的权力，而非繁杂的信息。
+## 角色
+你是一名顶级的量化投资基金经理，拥有十五年从业经验。你的决策风格极度数据驱动、逻辑严谨，并专注于风险调整后收益（Risk-Adjusted Return）。
 
-## 【档案】
-- **期号:** {next_issue}
-- **国库:** 预算 {budget} 元
+## 核心任务
+综合所有分析师的独立报告和他们的历史表现，制定出本期最终的投资策略和资金分配。**你要特别倚重那些历史战绩优秀的分析师的观点。**
 
-### 📜 元老院密诏
-> {senate_edict}
+## 情报汇总
+### 近期市场数据
+{recent_draws_str}
 
-### 📄 A: 量化军团作战计划
-```json
-{quant_proposal}
+### 投研团队报告
+{investment_briefing}
 
- B: AI先知院未来预警json
+## 思考链指引
+1.  **评估分析师**: 首先评估每位分析师的历史战绩。谁是常胜将军？谁的观点需要谨慎对待？
+2.  **寻找加权共识**: 找出被多位“常胜”分析师共同推荐的号码。这些是你的“高确信度”核心资产。
+3.  **挖掘Alpha机会**: 有没有某位表现优异的分析师，提出了一个独特的、未被他人注意到的号码？这可能是你的超额收益（Alpha）来源。
+4.  **构建投资组合**: 设计2-3个策略，明确区分核心（基于加权共识）和卫星（基于Alpha机会）。
+5.  **资金分配**: 根据策略的置信度和风险，为其分配资金百分比，总和为100%。
 
-{ml_briefing}
-
-【神谕】
-你的任务，是聆听元老院的最高战略指引，审阅A、B两份战术报告，然后用你无上的智慧，签发最终的、唯一的作战指令。
-思考链（隐）：1审edict意图（策略/alloc），2比A/B协同（热/预警），3融神谕（动态填numbers，引用VaR）。
-你的思考，即是帝国的命运。融合A/B动态填组合（引用edict策略），memo加预言种子（下期tweak，如Tuner冷重）。
-输出: final_imperial_portfolio (结构化JSON), final_memo (一句敕令+预言)。【输出规范】
-纯JSON。自检：总cost≤{budget}？E[Hits]均>1.5？ROI>0？内部微调（e.g., 砍bets/加冷）。
+## 输出规范 (纯JSON)
 {{
-  "meta": {{
-    "version": "The Final Mandate",
-    "issue": "{next_issue}",
-    "constraints": {{
-      "budget": {budget},
-      "max_bets": {max_bets},
-      "risk_preference": "{risk_preference}"
-    }}
-  }},
-  "edict": {{
-    "final_imperial_portfolio": {{
-      "recommendations": [
-        {{
-          "type": "皇帝荣耀(7+3)",
-          "cost": {default_quant["portfolio"][0]["cost"]},
-          "front_numbers": {json.dumps(default_quant["portfolio"][0]["front_numbers"])},
-          "back_numbers": {json.dumps(default_quant["portfolio"][0]["back_numbers"])},
-          "expected_hits": {default_quant["portfolio"][0]["expected_hits"]},
-          "sharpe": {default_quant["portfolio"][0]["sharpe"]},
-          "role": "融合A锋锐+B远见，东境强攻+沼泽守护"
-        }},
-        {{
-          "type": "侧翼宁静(5+2)",
-          "cost": 10.0,
-          "front_numbers": [9,27,1,4,12],
-          "back_numbers": {json.dumps(list(default_ml["pred_probs"]["back"].keys()))},
-          "expected_hits": {0.85 + tuner_tweak["cold_weight"]},
-          "sharpe": 1.32,
-          "role": "元老授权对冲，捕奇袭反弹"
-        }}
-      ],
-      "allocation_summary": f"总cost {total_cost}元，{alloc}，ROI预+{max(0.01, 0.15 + roi_hint * 0.05):.2f} (Tuner tweak)",
-      "overall_e_hits_range": [1.8, 2.4]
+  "issue": "{next_issue_hint}",
+  "investment_summary": "一句话总结你的投资策略，必须体现你对分析师历史表现的考量。",
+  "portfolio_allocation": [
+    {{
+      "strategy_name": "核心稳健策略",
+      "capital_allocation_percentage": 70,
+      "front_numbers": [], "back_numbers": [],
+      "rationale": "构建此策略的简要逻辑，例如：'主要基于历史表现最好的前两位分析师的共识号码。'"
     }},
-    "final_memo": "根据元老院的授权，朕将A计划的锋锐与B计划的远见相结合。东境的荣耀，必须由沼泽的宁静来守护。执行，让帝国的光辉，照耀每一寸土地。下期预言：Tuner示反弹续强，冷重{tuner_tweak['cold_weight']:.2f}。"
-  }},
-  "self_check": {{
-    "ok": {str(bool(roi_ok and total_cost <= budget and avg_e_hits >= 1.5))},
-    "roi_ok": {str(roi_ok)},
-    "cost_ok": {str(total_cost <= budget)},
-    "e_hits_ok": {str(avg_e_hits >= 1.5)},
-    "fixes_applied": {json.dumps(fixes)}
-  }}
+    {{
+      "strategy_name": "卫星Alpha策略",
+      "capital_allocation_percentage": 30,
+      "front_numbers": [], "back_numbers": [],
+      "rationale": "构建此策略的简要逻辑，例如：'捕捉了近期表现优异的Markov模型发现的一个独特趋势。'"
+    }}
+  ]
 }}
 """
-    return prompt.strip(), next_issue
 
-# **测试诏令**：喂recent_draws（25124: [06,09,14,26,27]+[08,09]），roi_hint=-0.02（负教训），输出edict“警惕守护”，front_a动态[6,9,14,20,26,27]，total_cost=42+10=52<100，e_hits=1.52（微调ok），memo预言“冷重0.15”。帝国就绪——权限激活
+    # 文件: prompt_templates.py (新增)
 
+    def build_pattern_reversal_prompt(
+            model_outputs: Dict[str, Any],
+            recent_draws: List[LotteryHistory],
+            next_issue_hint: str
+    ) -> Tuple[str, str]:
+        """
+        Prompt V1.0: 模式识别与反转策略
+        - AI角色: 逆向思维的博弈论专家。
+        - 核心: 专注于寻找热门趋势的终结和冷门模式的反弹。
+        """
+
+        # 提取“最热”和“最冷”的情报
+        hot_cold_scorer_output = model_outputs.get("HotColdScorer", {}).get('recommendations', [{}])[0]
+        omission_scorer_output = model_outputs.get("OmissionValueScorer", {}).get('recommendations', [{}])[0]
+
+        hottest_front = [item['number'] for item in hot_cold_scorer_output.get('front_number_scores', [])[:5]]
+        coldest_front = [item['number'] for item in reversed(hot_cold_scorer_output.get('front_number_scores', []))][:5]
+        max_omission_front = [item['number'] for item in omission_scorer_output.get('front_number_scores', [])[:5]]
+
+        intelligence_briefing = f"""
+    - **当前市场最热 (HotColdScorer Top 5)**: {hottest_front} (这些号码近期出现最频繁)
+    - **当前市场最冷 (HotColdScorer Bottom 5)**: {coldest_front} (这些号码近期出现最少)
+    - **最大遗漏值 (OmissionScorer Top 5)**: {max_omission_front} (这些号码最久没出现，理论上回归概率正在增加)
+    - **近期开奖历史**: {' | '.join(str(d.front_area) for d in recent_draws[-5:])}
+    """
+
+        prompt = f"""
+    # 逆向博弈决策指令 :: 第 {next_issue_hint} 期
+
+    ## 角色
+    你是一位顶级的博弈论专家和市场心理分析师。你从不追随大众，而是专注于寻找市场共识的“拐点”和“反转”机会。
+
+    ## 核心任务
+    分析下方情报，**预测当前热门趋势的终结，并捕捉极冷模式的反弹机会**。你的目标不是求稳，而是以小博大，获取超额回报。
+
+    ## 情报汇总
+    {intelligence_briefing}
+
+    ## 思考链指引
+    1.  **热门过载分析**: “当前市场最热”的号码，是否已经连续出现了多期？它们的趋势是否已经到了强弩之末？
+    2.  **冷门反弹时机**: “最大遗漏值”的号码中，有没有哪个符合历史上的平均回归周期？“当前市场最冷”的号码，有没有形成一个可能触底反弹的形态？
+    3.  **构建反转组合**: 基于你的判断，设计1-2个“反转”策略。
+        - **“热度消退”组合**: 故意避开一部分最热的号码，选择次热或温号。
+        - **“深冷爆发”组合**: 大胆启用1-2个最大遗漏值的号码，并搭配一些温号。
+
+    ## 输出规范 (纯JSON)
+    {{
+      "issue": "{next_issue_hint}",
+      "investment_summary": "一句话总结你的逆向博弈策略。",
+      "portfolio_allocation": [
+        {{
+          "strategy_name": "深冷反弹策略",
+          "capital_allocation_percentage": 100,
+          "front_numbers": [], "back_numbers": [],
+          "rationale": "构建此策略的简要逻辑，例如：'押注最大遗漏号码25在本期回归，并结合近期冷号区的1和7。'"
+        }}
+      ]
+    }}
+    """
+
+    # 文件: prompt_templates.py (新增)
+
+    def build_graph_analysis_prompt(
+            model_outputs: Dict[str, Any],
+            recent_draws: List[LotteryHistory],
+            next_issue_hint: str
+    ) -> Tuple[str, str]:
+        """
+        Prompt V1.0: 号码关系网络分析
+        - AI角色: 网络科学与图论专家。
+        - 核心: 解读号码共现网络，寻找“核心节点”和“强关联对”。
+        """
+
+        graph_analyzer_output = model_outputs.get("NumberGraphAnalyzer", {}).get('recommendations', [{}])[0]
+
+        # PageRank分数代表了号码在网络中的“核心”程度
+        core_nodes = [f"{item['number']}(分:{item['score']:.3f})" for item in
+                      graph_analyzer_output.get('front_number_scores', [])[:10]]
+
+        intelligence_briefing = f"""
+    - **网络核心节点 (PageRank Top 10)**: {core_nodes} (这些号码在历史共现网络中处于中心位置，影响力最大)
+    - **上期开奖**: {recent_draws[-1].front_area}
+    """
+
+        prompt = f"""
+    # 号码网络战术指令 :: 第 {next_issue_hint} 期
+
+    ## 角色
+    你是一位顶级的网络科学家，精通图论。你眼中的彩票号码不是孤立的，而是一个个相互连接的节点。
+
+    ## 核心任务
+    分析下方情报，找出与**上期开奖号码**关系最紧密的“核心节点”，并围绕它们构建“强关联”组合。
+
+    ## 情报汇总
+    {intelligence_briefing}
+
+    ## 思考链指引
+    1.  **寻找强关联**: 在“网络核心节点”列表中，哪些号码与“上期开奖”的号码在历史上最常一起出现？（这需要你的推理能力，因为数据没有直接给出）
+    2.  **构建核心-卫星结构**: 选择1-2个与上期号码关联最强的“核心节点”作为你组合的“锚点”。
+    3.  **扩展关联网络**: 再从“核心节点”列表中，选择其他与你的“锚点”号码关系紧密的号码，作为“卫星”加入组合。
+    4.  **最终形成组合**: 基于上述关系分析，构建你的最终推荐。
+
+    ## 输出规范 (纯JSON)
+    {{
+      "issue": "{next_issue_hint}",
+      "investment_summary": "一句话总结你的号码网络构建策略。",
+      "portfolio_allocation": [
+        {{
+          "strategy_name": "核心-卫星网络策略",
+          "capital_allocation_percentage": 100,
+          "front_numbers": [], "back_numbers": [],
+          "rationale": "构建此策略的简要逻辑，例如：'以上期号码7为引子，选择了网络中与它关联最强的核心节点15和22，并扩展了它们的邻近高分节点。'"
+        }}
+      ]
+    }}
+    """
+
+    return prompt.strip(), next_issue_hint

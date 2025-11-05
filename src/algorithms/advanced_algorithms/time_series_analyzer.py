@@ -8,7 +8,7 @@ import logging
 
 
 class TimeSeriesAnalyzer(BaseAlgorithm):
-    """多时间尺度时序分析器 - 完整实现版"""
+    """多时间尺度时序分析器 - 修复版"""
     name = "TimeSeriesAnalyzer"
     version = "2.0"
 
@@ -98,14 +98,14 @@ class TimeSeriesAnalyzer(BaseAlgorithm):
     def _analyze_multi_scale_trends(self, ts_data: Dict[str, Any]):
         """多时间尺度趋势分析"""
         self.trend_data = {
-            'short_term': self._analyze_time_scale(ts_data, self.parameters['short_term_window'], 'short'),
-            'medium_term': self._analyze_time_scale(ts_data, self.parameters['medium_term_window'], 'medium'),
-            'long_term': self._analyze_time_scale(ts_data, self.parameters['long_term_window'], 'long')
+            'short_term': self._analyze_time_scale(ts_data, self.parameters['short_term_window']),
+            'medium_term': self._analyze_time_scale(ts_data, self.parameters['medium_term_window']),
+            'long_term': self._analyze_time_scale(ts_data, self.parameters['long_term_window'])
         }
 
         logging.info("多时间尺度趋势分析完成")
 
-    def _analyze_time_scale(self, ts_data: Dict[str, Any], window: int, scale_name: str) -> Dict[str, Any]:
+    def _analyze_time_scale(self, ts_data: Dict[str, Any], window: int) -> Dict[str, Any]:
         """分析指定时间尺度的趋势"""
         front_trends = {}
         back_trends = {}
@@ -115,7 +115,7 @@ class TimeSeriesAnalyzer(BaseAlgorithm):
             series = ts_data['front'][num]
             if len(series) >= window:
                 recent_data = series[-window:]
-                trend_info = self._calculate_trend_metrics(recent_data, scale_name)
+                trend_info = self._calculate_trend_metrics(recent_data)
                 front_trends[num] = trend_info
 
         # 分析后区号码趋势
@@ -123,12 +123,12 @@ class TimeSeriesAnalyzer(BaseAlgorithm):
             series = ts_data['back'][num]
             if len(series) >= window:
                 recent_data = series[-window:]
-                trend_info = self._calculate_trend_metrics(recent_data, scale_name)
+                trend_info = self._calculate_trend_metrics(recent_data)
                 back_trends[num] = trend_info
 
         return {'front': front_trends, 'back': back_trends}
 
-    def _calculate_trend_metrics(self, series: List[int], scale_name: str) -> Dict[str, Any]:
+    def _calculate_trend_metrics(self, series: List[int]) -> Dict[str, Any]:
         """计算趋势指标"""
         if not series:
             return {}
@@ -151,8 +151,7 @@ class TimeSeriesAnalyzer(BaseAlgorithm):
             'total_appearances': total_appearances,
             'trend_direction': trend_direction,  # 1:上升, -1:下降, 0:平稳
             'momentum': float(momentum),
-            'moving_avg': float(moving_avg) if not np.isnan(moving_avg) else 0.0,
-            'scale': scale_name
+            'moving_avg': float(moving_avg) if not np.isnan(moving_avg) else 0.0
         }
 
     def _calculate_trend_direction(self, series: List[int]) -> int:

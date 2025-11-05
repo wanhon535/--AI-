@@ -163,3 +163,23 @@ class RealTimeFeedbackLearner(BaseAlgorithm):
             'confidence': confidence,
             'strategy_source': 'learned_pattern' if best_matching_pattern else 'adaptive_fallback'
         }
+
+    def _initialize_adaptation_factors(self):
+        """初始化适应因子"""
+        self.learning_state['adaptation_factors'] = {
+            'trend_following': 1.0,
+            'reversion_strategy': 1.0,
+            'pattern_matching': 1.0
+        }
+
+    def _extract_pattern_features(self, window):
+        """提取模式特征"""
+        return {}
+
+    def _calculate_window_success_rate(self, window, next_window):
+        """计算窗口成功率"""
+        return 0.5
+
+    def _extract_prediction_features(self, prediction):
+        """提取预测特征"""
+        return {}
