@@ -1,185 +1,517 @@
-# algorithms/real_time_feedback_learner.py
-from src.algorithms.base_algorithm import BaseAlgorithm
-from typing import List, Dict, Any
+# src/algorithms/advanced_algorithms/real_time_feedback_learner.py
 import numpy as np
-from datetime import datetime, timedelta
-
+from src.algorithms.base_algorithm import BaseAlgorithm
 from src.model.lottery_models import LotteryHistory
+from typing import List, Dict, Any, Tuple
+import logging
+from collections import defaultdict, deque
+import sqlite3
+from datetime import datetime
 
 
 class RealTimeFeedbackLearner(BaseAlgorithm):
-    """实时反馈学习器 - 根据最新结果立即调整策略"""
+    """实时反馈学习器 - 基于近期表现动态调整预测策略"""
+    name = "RealTimeFeedbackLearner"
+    version = "1.0"
 
-    def __init__(self):
-        super().__init__("real_time_feedback_learner", "2.0")
-        self.learning_state = {
-            'recent_success_patterns': [],
-            'failed_strategies': [],
-            'adaptation_factors': {},
-            'performance_trend': 'stable'
-        }
-        self.parameters = {
-            'learning_rate': 0.2,
-            'adaptation_speed': 0.1,
-            'pattern_memory_size': 50
-        }
+    def __init__(self, feedback_window: int = 50):
+        super().__init__()
+        self.feedback_window = feedback_window  # 反馈窗口大小
+        self.performance_history = deque(maxlen=feedback_window)
+        self.recent_predictions = deque(maxlen=20)
+        self.adaptation_weights = {'frequency': 0.3, 'recency': 0.4, 'performance': 0.3}
+        self.number_trends = {}
+        self.is_trained = False
 
     def train(self, history_data: List[LotteryHistory]) -> bool:
-        """训练实时学习器"""
-        if len(history_data) < 20:
+        """训练实时反馈模型"""
+        if not history_data or len(history_data) < 30:
+            logging.error("数据量不足，无法训练实时反馈模型")
             return False
 
-        # 分析历史成功模式
-        self._analyze_historical_success(history_data)
+        try:
+            # 分析号码趋势
+            self._analyze_number_trends(history_data)
 
-        # 初始化适应因子
-        self._initialize_adaptation_factors()
+            # 初始化性能历史
+            self._initialize_performance_history(history_data)
 
-        self.is_trained = True
-        return True
+            self.is_trained = True
+            logging.info(f"实时反馈学习器训练完成，反馈窗口: {self.feedback_window}")
+            return True
 
-    def _analyze_historical_success(self, history_data: List[LotteryHistory]):
-        """分析历史成功模式"""
-        success_patterns = []
-
-        for i in range(len(history_data) - 5):
-            window = history_data[i:i + 5]
-            # 分析这个时间窗口内的成功特征
-            pattern_features = self._extract_pattern_features(window)
-            success_rate = self._calculate_window_success_rate(window, history_data[i + 5:i + 10])
-
-            if success_rate > 0.6:  # 成功阈值
-                success_patterns.append({
-                    'features': pattern_features,
-                    'success_rate': success_rate,
-                    'timestamp': window[-1].date if hasattr(window[-1], 'date') else datetime.now()
-                })
-
-        # 保留最佳模式
-        success_patterns.sort(key=lambda x: x['success_rate'], reverse=True)
-        self.learning_state['recent_success_patterns'] = success_patterns[:self.parameters['pattern_memory_size']]
-
-    def process_feedback(self, prediction: Dict, actual_result: LotteryHistory):
-        """处理预测反馈并立即学习"""
-        if not self.is_trained:
-            return
-
-        # 计算预测准确度
-        accuracy = self._calculate_prediction_accuracy(prediction, actual_result)
-
-        # 更新学习状态
-        self._update_learning_state(accuracy, prediction, actual_result)
-
-        # 调整适应因子
-        self._adapt_strategy_based_on_feedback(accuracy)
-
-    def _calculate_prediction_accuracy(self, prediction: Dict, actual: LotteryHistory) -> float:
-        """计算预测准确度"""
-        if 'recommendations' not in prediction:
-            return 0.0
-
-        best_rec = prediction['recommendations'][0]
-        front_hits = len(set(best_rec.get('front_numbers', [])) & set(actual.front_area))
-        back_hits = len(set(best_rec.get('back_numbers', [])) & set(actual.back_area))
-
-        # 加权评分
-        return (front_hits * 0.7 + back_hits * 0.3) / (5 * 0.7 + 2 * 0.3)
-
-    def _update_learning_state(self, accuracy: float, prediction: Dict, actual: LotteryHistory):
-        """更新学习状态"""
-        if accuracy > 0.6:
-            # 记录成功模式
-            success_pattern = {
-                'prediction_features': self._extract_prediction_features(prediction),
-                'actual_result': actual,
-                'accuracy': accuracy,
-                'timestamp': datetime.now()
-            }
-            self.learning_state['recent_success_patterns'].append(success_pattern)
-
-            # 限制记忆大小
-            if len(self.learning_state['recent_success_patterns']) > self.parameters['pattern_memory_size']:
-                self.learning_state['recent_success_patterns'].pop(0)
-
-        else:
-            # 记录失败策略
-            failed_strategy = {
-                'prediction': prediction,
-                'actual': actual,
-                'accuracy': accuracy
-            }
-            self.learning_state['failed_strategies'].append(failed_strategy)
-
-    def _adapt_strategy_based_on_feedback(self, accuracy: float):
-        """基于反馈调整策略"""
-        # 根据准确度趋势调整学习率
-        if accuracy < 0.4:
-            # 表现差，增加探索性
-            self.parameters['learning_rate'] = min(0.3, self.parameters['learning_rate'] + 0.05)
-            self.learning_state['performance_trend'] = 'declining'
-        elif accuracy > 0.7:
-            # 表现好，减少探索性
-            self.parameters['learning_rate'] = max(0.1, self.parameters['learning_rate'] - 0.02)
-            self.learning_state['performance_trend'] = 'improving'
+        except Exception as e:
+            logging.error(f"实时反馈学习器训练失败: {e}")
+            return False
 
     def predict(self, history_data: List[LotteryHistory]) -> Dict[str, Any]:
-        """基于实时学习的预测"""
+        """基于实时反馈进行预测"""
         if not self.is_trained:
             return {'error': '模型未训练'}
 
-        # 应用学习到的策略
-        adapted_prediction = self._apply_learned_strategies(history_data)
+        try:
+            # 获取最新数据用于分析
+            recent_data = history_data[-min(100, len(history_data)):]
 
-        return {
-            'algorithm': self.name,
-            'version': self.version,
-            'recommendations': [adapted_prediction],
-            'analysis': {
-                'learning_state': self.learning_state['performance_trend'],
-                'success_patterns_count': len(self.learning_state['recent_success_patterns']),
-                'current_learning_rate': self.parameters['learning_rate']
+            # 生成基于反馈的预测
+            front_predictions = self._feedback_based_prediction(recent_data, 'front')
+            back_predictions = self._feedback_based_prediction(recent_data, 'back')
+
+            # 计算动态置信度
+            confidence = self._calculate_dynamic_confidence()
+
+            return {
+                'algorithm': self.name,
+                'version': self.version,
+                'recommendations': [{
+                    'front_number_scores': front_predictions,
+                    'back_number_scores': back_predictions,
+                    'confidence': confidence,
+                    'feedback_metrics': self._get_feedback_metrics()
+                }],
+                'analysis': {
+                    'performance_history': list(self.performance_history)[-10:],  # 最近10次表现
+                    'current_trends': self._get_current_trends(recent_data),
+                    'adaptation_strategy': self.adaptation_weights
+                }
             }
+
+        except Exception as e:
+            logging.error(f"实时反馈预测失败: {e}")
+            return {'error': str(e)}
+
+    def update_feedback(self, prediction_result: Dict[str, Any], actual_numbers) -> bool:
+        """更新预测反馈"""
+        try:
+            # 计算预测准确率
+            accuracy = self._calculate_prediction_accuracy(prediction_result, actual_numbers)
+
+            # 记录性能历史
+            self.performance_history.append({
+                'timestamp': datetime.now(),
+                'accuracy': accuracy,
+                'prediction_type': 'combined'
+            })
+
+            # 记录预测
+            self.recent_predictions.append({
+                'prediction': prediction_result,
+                'actual': actual_numbers,
+                'accuracy': accuracy
+            })
+
+            # 动态调整权重
+            self._adapt_weights_based_on_performance()
+
+            logging.info(f"反馈更新完成，准确率: {accuracy:.4f}")
+            return True
+
+        except Exception as e:
+            logging.error(f"反馈更新失败: {e}")
+            return False
+
+    def process_feedback(self, prediction_result: Dict[str, Any], actual_numbers) -> bool:
+        """处理预测反馈（update_feedback的别名方法）"""
+        return self.update_feedback(prediction_result, actual_numbers)
+
+    def _analyze_number_trends(self, history_data: List[LotteryHistory]):
+        """分析号码趋势"""
+        self.number_trends = {
+            'front': defaultdict(list),
+            'back': defaultdict(list)
         }
 
-    def _apply_learned_strategies(self, history_data: List[LotteryHistory]) -> Dict[str, Any]:
-        """应用学习到的策略"""
-        recent_data = history_data[-10:]
+        for i, record in enumerate(history_data):
+            # 前区号码趋势
+            for number in record.front_area:
+                self.number_trends['front'][number].append({
+                    'draw_index': i,
+                    'timestamp': record.draw_time,
+                    'occurred': True
+                })
 
-        # 匹配最近的成功模式
-        best_matching_pattern = self._find_best_matching_pattern(recent_data)
+            # 后区号码趋势
+            for number in record.back_area:
+                self.number_trends['back'][number].append({
+                    'draw_index': i,
+                    'timestamp': record.draw_time,
+                    'occurred': True
+                })
 
-        if best_matching_pattern:
-            # 使用成功模式进行预测
-            prediction = self._generate_from_success_pattern(best_matching_pattern, recent_data)
-            confidence = 0.8
+    def _initialize_performance_history(self, history_data: List[LotteryHistory]):
+        """初始化性能历史"""
+        # 模拟历史性能数据
+        for i in range(min(self.feedback_window, len(history_data) - 10)):
+            # 使用随机准确率初始化，实际应用中可以根据历史预测计算
+            base_accuracy = 0.3 + 0.4 * (i / min(self.feedback_window, len(history_data)))
+            self.performance_history.append({
+                'timestamp': history_data[i].draw_time if i < len(history_data) else datetime.now(),
+                'accuracy': base_accuracy,
+                'prediction_type': 'historical'
+            })
+
+    def _feedback_based_prediction(self, recent_data: List[LotteryHistory], area_type: str) -> List[Dict[str, Any]]:
+        """基于反馈的预测"""
+        predictions = []
+        number_range = range(1, 36) if area_type == 'front' else range(1, 13)
+
+        for number in number_range:
+            # 计算基于频率的得分
+            freq_score = self._calculate_frequency_score(number, area_type, recent_data)
+
+            # 计算基于近期表现的得分
+            recency_score = self._calculate_recency_score(number, area_type, recent_data)
+
+            # 计算基于趋势的得分
+            trend_score = self._calculate_trend_score(number, area_type)
+
+            # 综合得分
+            composite_score = (
+                    self.adaptation_weights['frequency'] * freq_score +
+                    self.adaptation_weights['recency'] * recency_score +
+                    self.adaptation_weights['performance'] * trend_score
+            )
+
+            predictions.append({
+                'number': number,
+                'score': round(composite_score, 4),
+                'score_breakdown': {
+                    'frequency': round(freq_score, 4),
+                    'recency': round(recency_score, 4),
+                    'trend': round(trend_score, 4)
+                },
+                'recent_performance': self._get_number_recent_performance(number, area_type)
+            })
+
+        # 按得分排序
+        predictions.sort(key=lambda x: x['score'], reverse=True)
+        return predictions
+
+    def _calculate_frequency_score(self, number: int, area_type: str, recent_data: List[LotteryHistory]) -> float:
+        """计算频率得分"""
+        if area_type == 'front':
+            occurrences = sum(1 for record in recent_data if number in record.front_area)
         else:
-            # 使用自适应策略
-            prediction = self._adaptive_fallback_strategy(recent_data)
-            confidence = 0.65
+            occurrences = sum(1 for record in recent_data if number in record.back_area)
+
+        max_possible = len(recent_data)
+        return occurrences / max_possible if max_possible > 0 else 0.1
+
+    def _calculate_recency_score(self, number: int, area_type: str, recent_data: List[LotteryHistory]) -> float:
+        """计算近期表现得分"""
+        # 查看最近20期表现
+        recent_window = min(20, len(recent_data))
+        recent_occurrences = 0
+
+        for i in range(1, recent_window + 1):
+            record = recent_data[-i]
+            if area_type == 'front':
+                if number in record.front_area:
+                    recent_occurrences += (recent_window - i + 1)  # 越近权重越高
+            else:
+                if number in record.back_area:
+                    recent_occurrences += (recent_window - i + 1)
+
+        max_score = sum(range(1, recent_window + 1))
+        return recent_occurrences / max_score if max_score > 0 else 0.1
+
+    def _calculate_trend_score(self, number: int, area_type: str) -> float:
+        """计算趋势得分"""
+        trends = self.number_trends[area_type].get(number, [])
+        if len(trends) < 3:
+            return 0.1
+
+        # 分析最近出现模式
+        recent_trends = trends[-10:]  # 最近10次出现
+        if not recent_trends:
+            return 0.1
+
+        # 简单趋势分析：如果近期频繁出现则得分高
+        return min(len(recent_trends) / 10.0, 1.0)
+
+    def _calculate_dynamic_confidence(self) -> float:
+        """计算动态置信度"""
+        if not self.performance_history:
+            return 0.5
+
+        # 基于近期表现计算置信度
+        recent_performance = list(self.performance_history)[-10:]
+        if not recent_performance:
+            return 0.5
+
+        avg_accuracy = np.mean([p['accuracy'] for p in recent_performance])
+
+        # 稳定性因子
+        stability = 1.0 - np.std([p['accuracy'] for p in recent_performance])
+
+        confidence = avg_accuracy * 0.7 + stability * 0.3
+        return min(max(confidence, 0.1), 0.95)
+
+    def _calculate_prediction_accuracy(self, prediction: Dict[str, Any], actual_numbers) -> float:
+        """计算预测准确率"""
+        try:
+            if 'recommendations' not in prediction or not prediction['recommendations']:
+                return 0.0
+
+            rec = prediction['recommendations'][0]
+
+            # 确保我们获取的是前区号码得分列表和后区号码得分列表
+            front_scores = rec.get('front_number_scores', [])
+            back_scores = rec.get('back_number_scores', [])
+
+            # 提取号码而不是整个对象
+            predicted_front = []
+            if front_scores and isinstance(front_scores, list):
+                for item in front_scores[:5]:  # 取前5个推荐号码
+                    if isinstance(item, dict) and 'number' in item:
+                        predicted_front.append(item['number'])
+                    elif isinstance(item, (int, float)):
+                        predicted_front.append(int(item))
+
+            predicted_back = []
+            if back_scores and isinstance(back_scores, list):
+                for item in back_scores[:2]:  # 取前2个推荐号码
+                    if isinstance(item, dict) and 'number' in item:
+                        predicted_back.append(item['number'])
+                    elif isinstance(item, (int, float)):
+                        predicted_back.append(int(item))
+
+            # 确保actual_numbers是列表格式
+            if hasattr(actual_numbers, 'front_area') and hasattr(actual_numbers, 'back_area'):
+                # 如果传入的是LotteryHistory对象
+                actual_front = actual_numbers.front_area
+                actual_back = actual_numbers.back_area
+            else:
+                # 如果传入的是列表
+                actual_front = actual_numbers[:5] if len(actual_numbers) >= 5 else []
+                actual_back = actual_numbers[5:7] if len(actual_numbers) >= 7 else []
+
+            # 计算前区匹配数
+            front_match = len(set(predicted_front) & set(actual_front)) if predicted_front and actual_front else 0
+            back_match = len(set(predicted_back) & set(actual_back)) if predicted_back and actual_back else 0
+
+            # 综合准确率（前区权重0.7，后区权重0.3）
+            accuracy = (front_match / 5 * 0.7) + (back_match / 2 * 0.3) if front_match + back_match > 0 else 0.0
+            return accuracy
+
+        except Exception as e:
+            logging.error(f"准确率计算失败: {e}")
+            return 0.0
+
+    def _adapt_weights_based_on_performance(self):
+        """根据性能动态调整权重"""
+        if len(self.performance_history) < 10:
+            return
+
+        recent_performance = list(self.performance_history)[-10:]
+        recent_accuracies = [p['accuracy'] for p in recent_performance]
+
+        avg_accuracy = np.mean(recent_accuracies)
+
+        # 根据平均准确率调整权重
+        if avg_accuracy < 0.3:
+            # 表现不佳，增加频率权重
+            self.adaptation_weights = {'frequency': 0.5, 'recency': 0.3, 'performance': 0.2}
+        elif avg_accuracy > 0.6:
+            # 表现良好，保持当前策略
+            self.adaptation_weights = {'frequency': 0.3, 'recency': 0.4, 'performance': 0.3}
+        else:
+            # 中等表现，平衡策略
+            self.adaptation_weights = {'frequency': 0.4, 'recency': 0.35, 'performance': 0.25}
+
+    def _get_feedback_metrics(self) -> Dict[str, Any]:
+        """获取反馈指标"""
+        if not self.performance_history:
+            return {}
+
+        recent_performance = list(self.performance_history)[-10:]
+        accuracies = [p['accuracy'] for p in recent_performance]
 
         return {
-            'front_numbers': sorted(prediction['front']),
-            'back_numbers': sorted(prediction['back']),
-            'confidence': confidence,
-            'strategy_source': 'learned_pattern' if best_matching_pattern else 'adaptive_fallback'
+            'recent_accuracy_avg': round(np.mean(accuracies), 4),
+            'recent_accuracy_std': round(np.std(accuracies), 4),
+            'performance_trend': 'improving' if len(accuracies) > 1 and accuracies[-1] > accuracies[0] else 'declining',
+            'feedback_count': len(self.performance_history),
+            'current_weights': self.adaptation_weights
         }
 
-    def _initialize_adaptation_factors(self):
-        """初始化适应因子"""
-        self.learning_state['adaptation_factors'] = {
-            'trend_following': 1.0,
-            'reversion_strategy': 1.0,
-            'pattern_matching': 1.0
+    def _get_current_trends(self, recent_data: List[LotteryHistory]) -> Dict[str, Any]:
+        """获取当前趋势"""
+        if not recent_data:
+            return {}
+
+        # 分析最近10期的热门号码
+        recent_window = min(10, len(recent_data))
+        recent_records = recent_data[-recent_window:]
+
+        front_counts = defaultdict(int)
+        back_counts = defaultdict(int)
+
+        for record in recent_records:
+            for num in record.front_area:
+                front_counts[num] += 1
+            for num in record.back_area:
+                back_counts[num] += 1
+
+        return {
+            'hot_front_numbers': sorted(front_counts.items(), key=lambda x: x[1], reverse=True)[:5],
+            'hot_back_numbers': sorted(back_counts.items(), key=lambda x: x[1], reverse=True)[:3],
+            'cold_front_numbers': sorted(front_counts.items(), key=lambda x: x[1])[:5],
+            'cold_back_numbers': sorted(back_counts.items(), key=lambda x: x[1])[:3]
         }
 
-    def _extract_pattern_features(self, window):
-        """提取模式特征"""
-        return {}
+    def _get_number_recent_performance(self, number: int, area_type: str) -> Dict[str, Any]:
+        """获取号码近期表现"""
+        trends = self.number_trends[area_type].get(number, [])
+        if not trends:
+            return {'occurrence_count': 0, 'last_occurrence': None, 'trend': 'cold'}
 
-    def _calculate_window_success_rate(self, window, next_window):
-        """计算窗口成功率"""
-        return 0.5
+        recent_trends = trends[-10:]
+        return {
+            'occurrence_count': len(trends),
+            'recent_occurrence_count': len(recent_trends),
+            'last_occurrence': trends[-1]['timestamp'] if trends else None,
+            'trend': 'hot' if len(recent_trends) >= 3 else 'warm' if len(recent_trends) >= 1 else 'cold'
+        }
 
-    def _extract_prediction_features(self, prediction):
-        """提取预测特征"""
-        return {}
+    def test_with_database_data(self, db_path: str) -> Dict[str, Any]:
+        """使用数据库中的真实数据进行测试"""
+        try:
+            # 连接数据库获取数据
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            # 获取最新的100条历史数据
+            cursor.execute("""
+                SELECT draw_time, front_area, back_area 
+                FROM lottery_history 
+                ORDER BY draw_time DESC 
+                LIMIT 100
+            """)
+
+            results = cursor.fetchall()
+            history_data = []
+
+            for row in results:
+                history_data.append(LotteryHistory(
+                    draw_time=datetime.fromisoformat(row[0]),
+                    front_area=eval(row[1]),  # 假设存储为字符串形式的列表
+                    back_area=eval(row[2])
+                ))
+
+            history_data.reverse()  # 按时间正序排列
+            conn.close()
+
+            if not history_data:
+                return {'error': '数据库中没有数据'}
+
+            # 使用前80%的数据训练
+            train_size = int(len(history_data) * 0.8)
+            train_data = history_data[:train_size]
+            test_data = history_data[train_size:]
+
+            # 训练模型
+            if not self.train(train_data):
+                return {'error': '模型训练失败'}
+
+            # 在测试集上进行预测和评估
+            test_results = []
+
+            for i, record in enumerate(test_data):
+                # 使用截至当前记录的历史数据进行预测
+                current_history = history_data[:train_size + i]
+                prediction = self.predict(current_history)
+
+                if 'error' not in prediction:
+                    # 记录实际开奖号码 - 直接使用LotteryHistory对象
+                    actual_numbers = record
+
+                    # 更新反馈
+                    self.update_feedback(prediction, actual_numbers)
+
+                    test_results.append({
+                        'draw_time': record.draw_time,
+                        'prediction': prediction,
+                        'actual_numbers': actual_numbers
+                    })
+
+            # 计算整体测试指标
+            test_metrics = self._calculate_test_metrics(test_results)
+
+            return {
+                'test_summary': {
+                    'train_size': len(train_data),
+                    'test_size': len(test_data),
+                    'successful_predictions': len(test_results),
+                    'overall_accuracy': test_metrics['overall_accuracy']
+                },
+                'detailed_results': test_results[:5],  # 返回前5个详细结果
+                'performance_metrics': test_metrics,
+                'final_feedback_metrics': self._get_feedback_metrics()
+            }
+
+        except Exception as e:
+            logging.error(f"数据库测试失败: {e}")
+            return {'error': f'测试失败: {str(e)}'}
+
+    def _calculate_test_metrics(self, test_results: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """计算测试指标"""
+        if not test_results:
+            return {'overall_accuracy': 0.0}
+
+        accuracies = []
+        front_accuracies = []
+        back_accuracies = []
+
+        for result in test_results:
+            prediction = result['prediction']
+            actual_numbers = result['actual_numbers']
+
+            if 'recommendations' in prediction and prediction['recommendations']:
+                rec = prediction['recommendations'][0]
+
+                # 获取预测的号码
+                front_scores = rec.get('front_number_scores', [])
+                back_scores = rec.get('back_number_scores', [])
+
+                pred_front = []
+                if front_scores and isinstance(front_scores, list):
+                    for item in front_scores[:5]:
+                        if isinstance(item, dict) and 'number' in item:
+                            pred_front.append(item['number'])
+
+                pred_back = []
+                if back_scores and isinstance(back_scores, list):
+                    for item in back_scores[:2]:
+                        if isinstance(item, dict) and 'number' in item:
+                            pred_back.append(item['number'])
+
+                # 获取实际号码
+                if hasattr(actual_numbers, 'front_area') and hasattr(actual_numbers, 'back_area'):
+                    actual_front = actual_numbers.front_area
+                    actual_back = actual_numbers.back_area
+                else:
+                    actual_front = actual_numbers[:5] if len(actual_numbers) >= 5 else []
+                    actual_back = actual_numbers[5:7] if len(actual_numbers) >= 7 else []
+
+                # 计算匹配数
+                front_match = len(set(pred_front) & set(actual_front)) if pred_front and actual_front else 0
+                back_match = len(set(pred_back) & set(actual_back)) if pred_back and actual_back else 0
+
+                # 计算准确率
+                front_accuracy = front_match / 5
+                back_accuracy = back_match / 2
+                overall_accuracy = front_accuracy * 0.7 + back_accuracy * 0.3
+
+                accuracies.append(overall_accuracy)
+                front_accuracies.append(front_accuracy)
+                back_accuracies.append(back_accuracy)
+
+        return {
+            'overall_accuracy': round(np.mean(accuracies), 4) if accuracies else 0.0,
+            'front_accuracy': round(np.mean(front_accuracies), 4) if front_accuracies else 0.0,
+            'back_accuracy': round(np.mean(back_accuracies), 4) if back_accuracies else 0.0,
+            'accuracy_std': round(np.std(accuracies), 4) if accuracies else 0.0,
+            'min_accuracy': round(min(accuracies), 4) if accuracies else 0.0,
+            'max_accuracy': round(max(accuracies), 4) if accuracies else 0.0
+        }

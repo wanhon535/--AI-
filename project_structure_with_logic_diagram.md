@@ -1,21 +1,22 @@
 # 项目目录结构（带层级标注和注释）
 
 ```
-G:\wanhong\cp\--AI-/
+E:\pyhton\AI\AICp\
 ├── 1. 根目录层级
 │   ├── .git/                          # Git版本控制目录
 │   ├── .idea/                         # PyCharm IDE配置目录
 │   ├── .venv/                         # Python虚拟环境目录
-│   ├── .venv1/                        # Python虚拟环境目录(备用)
 │   ├── LICENSE                        # 项目许可证文件
 │   ├── README.md                      # 项目说明文档
 │   ├── __init__.py                    # Python包初始化文件
 │   ├── app.py                         # 应用主程序入口文件
 │   ├── main.py                        # 主程序文件
-│   ├── project_structure_with_comments.md  # 项目结构说明文档
-│   ├── project_structure_updated.md   # 更新后的项目结构说明文档
+│   ├── project_structure_with_logic_diagram.md  # 项目结构说明文档（带逻辑图）
 │   ├── requirements.txt               # 项目依赖包列表
 │   ├── run_backtest_simulation.py     # 回测模拟运行脚本
+│   ├── run_daily_cycle.py             # 日常运行周期脚本
+│   ├── run_evaluation.py              # 运行评估脚本
+│   ├── run_full_simulation.py         # 完整模拟运行脚本
 │   ├── simulation_controller.py        # 模拟控制器
 │   └── test_learning_loop.py          # 测试学习循环
 │
@@ -23,6 +24,7 @@ G:\wanhong\cp\--AI-/
 │   ├── Analysis.py                    # 分析页面 - 提供彩票数据分析功能
 │   ├── Backtest_Analysis.py           # 回测分析页面 - 显示算法回测结果
 │   ├── Betting.py                     # 投注页面 - 用户投注操作界面
+│   ├── Chatbot.py                     # 聊天机器人页面 - 与AI助手交互
 │   ├── History.py                     # 历史数据页面 - 展示历史开奖数据
 │   ├── Home.py                        # 主页 - 应用程序主页
 │   ├── Login.py                       # 登录页面 - 用户登录界面
@@ -33,28 +35,80 @@ G:\wanhong\cp\--AI-/
 ├── 3. 脚本层 (scripts/)
 │   ├── evaluate_and_learn.py          # 评估和学习脚本 - 算法评估和自动学习
 │   ├── generate_backtest_data.py      # 生成回测数据脚本
-│   └── initialize_configs.py          # 初始化配置脚本
+│   ├── initialize_configs.py          # 初始化配置脚本
+│   ├── run_reward_system.py           # 运行奖励系统脚本
+│   └── test_individual_algorithms.py  # 测试单个算法脚本
 │
 ├── 4. 源代码层 (src/)
 │   ├── 4.1 算法模块 (algorithms/)
-│   │   ├── advanced_algorithms/       # 高级算法目录
+│   │   ├── advanced_algorithms/               # 高级算法目录
 │   │   │   ├── adaptive_meta_ensemble.py      # 自适应元集成算法 - 动态调整算法权重
 │   │   │   ├── backtesting_engine.py          # 回测引擎 - 用于算法性能回测
 │   │   │   ├── bayesian_number_predictor.py   # 贝叶斯号码预测器 - 基于贝叶斯理论的号码预测
+│   │   │   ├── deep_learning_predictor.py     # 深度学习预测器 - 使用深度学习进行预测
 │   │   │   ├── feature_engineer.py            # 特征工程 - 数据特征提取和处理
 │   │   │   ├── hit_rate_optimizer.py          # 命中率优化器 - 优化预测命中率
 │   │   │   ├── lottery_rl_agent.py            # 彩票强化学习代理 - 使用强化学习进行号码选择
 │   │   │   ├── markov_transition_model.py     # 马尔可夫转移模型 - 基于马尔可夫链的号码转移预测
 │   │   │   ├── neural_lottery_predictor.py    # 神经网络彩票预测器 - 使用神经网络预测号码
-│   │   │   └── number_graph_analyzer.py       # 号码图分析器 - 分析号码之间的关联关系
+│   │   │   ├── number_graph_analyzer.py       # 号码图分析器 - 分析号码之间的关联关系
+│   │   │   ├── time_series_analyzer.py        # 时间序列分析器 - 基于时间序列的分析
+│   │   │   ├── time_series_predictor.py       # 时间序列预测器 - 使用时间序列方法预测
+│   │   │   └── real_time_feedback_learner.py  # 实时反馈学习器 - 根据最新结果调整预测模型
+│   │   │
+│   │   ├── advanced_rl/                       # 高级强化学习算法目录
+│   │   │   ├── hierarchical_rl.py             # 分层强化学习算法
+│   │   │   ├── multi_agent_rl.py              # 多智能体强化学习算法
+│   │   │   ├── proximal_policy_optimization.py # 近端策略优化算法
+│   │   │   └── soft_actor_critic.py           # 软性演员评论家算法
+│   │   │
+│   │   ├── anomaly_detection/                 # 异常检测算法目录
+│   │   │   ├── autoencoder_anomaly.py         # 自编码器异常检测
+│   │   │   ├── isolation_forest.py            # 孤立森林算法
+│   │   │   ├── one_class_svm.py               # 单类支持向量机
+│   │   │   └── variational_autoencoder.py     # 变分自编码器
+│   │   │
+│   │   ├── api/                               # 算法API接口目录
+│   │   │   └── algorithm_api.py               # 算法API接口实现
+│   │   │
+│   │   ├── causal_inference/                  # 因果推断算法目录
+│   │   │   ├── causal_forest.py               # 因果森林算法
+│   │   │   ├── double_ml_estimator.py         # 双重机器学习估计器
+│   │   │   └── propensity_score_matching.py   # 倾向得分匹配
+│   │   │
+│   │   ├── federated_learning/                # 联邦学习算法目录
+│   │   │   ├── differential_privacy.py        # 差分隐私算法
+│   │   │   ├── fedavg_algorithm.py            # 联邦平均算法
+│   │   │   └── personalization_models.py      # 个性化模型
+│   │   │
+│   │   ├── meta_learning/                     # 元学习算法目录
+│   │   │   ├── meta_ensemble_selector.py      # 元集成选择器
+│   │   │   ├── model_agnostic_meta_learning.py # 模型无关元学习
+│   │   │   └── reptile_algorithm.py           # Reptile算法
+│   │   │
+│   │   ├── neurosymbolic/                     # 神经符号算法目录
+│   │   │   ├── knowledge_graph_inference.py   # 知识图谱推理
+│   │   │   ├── neural_logic_machines.py       # 神经逻辑机
+│   │   │   └── symbolic_reasoning.py          # 符号推理
+│   │   │
+│   │   ├── quantum_inspired/                  # 量子启发式算法目录
+│   │   │   ├── grover_search_algorithm.py     # Grover搜索算法
+│   │   │   ├── quantum_annealing_optimizer.py # 量子退火优化器
+│   │   │   └── quantum_walk_simulator.py      # 量子行走模拟器
+│   │   │
+│   │   ├── topological_data_analysis/         # 拓扑数据分析算法目录
+│   │   │   ├── mapper_algorithm.py            # Mapper算法
+│   │   │   ├── persistent_homology.py         # 持久同调
+│   │   │   └── topological_features.py        # 拓扑特征分析
+│   │   │
 │   │   ├── base_algorithm.py                  # 算法基类 - 所有算法的基类定义
 │   │   ├── dynamic_ensemble_optimizer.py      # 动态集成优化器 - 动态组合多个算法
 │   │   ├── intelligent_pattern_recognizer.py  # 智能模式识别器 - 识别历史数据中的模式
 │   │   ├── ml_algorithms.py                   # 机器学习算法 - 机器学习相关算法实现
 │   │   ├── optimization_algorithms.py         # 优化算法 - 算法参数优化
-│   │   ├── real_time_feedback_learner.py      # 实时反馈学习器 - 根据最新结果调整预测模型
 │   │   ├── risk_management_algorithms.py      # 风险管理算法 - 控制投注风险
-│   │   └── statistical_algorithms.py          # 统计分析算法 - 基于统计学的分析方法
+│   │   ├── statistical_algorithms.py          # 统计分析算法 - 基于统计学的分析方法
+│   │   └── algorithm_recommendation_service.py # 算法推荐服务 - 根据性能推荐算法
 │   │
 │   ├── 4.2 分析模块 (analysis/)
 │   │   ├── database_importer.py               # 数据库导入器 - 从外部源导入数据到数据库
@@ -68,6 +122,7 @@ G:\wanhong\cp\--AI-/
 │   │
 │   ├── 4.4 布局和功能模块 (bf/)
 │   │   ├── aitongyi.py                        # AI通义相关文件 - 与通义大模型交互
+│   │   ├── llm_standalone_prompts.py          # 大语言模型独立提示词模板
 │   │   ├── prompt_templates.py                # 提示模板文件 - AI提示词模板
 │   │   └── 大乐透历史开奖数据.md              # 大乐透历史开奖数据文档 - 历史数据说明
 │   │
@@ -97,26 +152,41 @@ G:\wanhong\cp\--AI-/
 │   │   └── database_manager.py                # 数据库管理器 - 数据库整体管理功能
 │   │
 │   ├── 4.7 引擎模块 (engine/)
+│   │   ├── workflow/                          # 工作流目录
+│   │   │   └── tasks.py                       # 工作流任务 - 系统工作流任务定义
+│   │   ├── _deprecated_algorithm_runner.py    # 已弃用的算法运行器 - 旧版本算法执行器
 │   │   ├── adaptive_weight_updater.py         # 自适应权重更新器 - 动态更新算法权重
 │   │   ├── algorithm_factory.py               # 算法工厂 - 创建和管理算法实例
-│   │   ├── algorithm_runner.py                # 算法运行器 - 执行各种预测算法
 │   │   ├── evaluation_service.py              # 评估服务 - 算法效果评估服务
 │   │   ├── evaluation_system.py               # 评估系统 - 评估算法和推荐结果
+│   │   ├── imperial_senate.py                 # 元老院 - 算法决策协调器
 │   │   ├── performance_logger.py              # 性能记录器 - 记录算法性能指标
 │   │   ├── recommendation_engine.py           # 推荐引擎 - 生成号码推荐结果
 │   │   ├── scheduler.py                       # 调度器 - 任务调度管理
-│   │   ├── system_orchestrator.py             # 系统协调器 - 协调各模块运行
-│   │   └── workflow/tasks.py                  # 工作流任务 - 系统工作流任务定义
+│   │   └── system_orchestrator.py             # 系统协调器 - 协调各模块运行
 │   │
 │   ├── 4.8 大语言模型模块 (llm/)
-│   │   ├── bash.py                            # Bash命令执行相关 - 执行bash命令
 │   │   ├── clients/                           # 各种LLM客户端实现
 │   │   │   ├── ai_caller.py                   # AI调用接口文件 - 统一调用各类AI模型
 │   │   │   ├── ai_callerv_1.0.py              # AI调用接口v1.0版本 - 旧版本AI调用接口
 │   │   │   ├── deepseek.py                    # DeepSeek客户端 - DeepSeek模型客户端
 │   │   │   ├── gemini.py                      # Gemini客户端 - Google Gemini模型客户端
 │   │   │   ├── openai_compatible.py           # OpenAI兼容客户端 - 兼容OpenAI接口的客户端
-│   │   │   └── qwen.py                        # 通义千问客户端 - 阿里通义千问模型客户端
+│   │   │   ├── qwen.py                        # 通义千问客户端 - 阿里通义千问模型客户端
+│   │   │   └── zhipu.py                       # 智谱客户端 - 智谱AI模型客户端
+│   │   ├── coordinator_ai/                    # 协调AI模块
+│   │   │   ├── ensemble_coordinator.py        # 集成协调器 - 协调多个AI模型
+│   │   │   ├── feedback_coordinator.py        # 反馈协调器 - 处理反馈信息
+│   │   │   ├── meta_cognitive_coordinator.py  # 元认知协调器 - 高级推理协调
+│   │   │   └── workflow_coordinator.py        # 工作流协调器 - 协调AI工作流
+│   │   ├── metacognitive_ai/                  # 元认知AI模块
+│   │   │   └── metacognitive_reasoner.py      # 元认知推理器 - 高级推理模块
+│   │   ├── specialist_ai/                     # 专家AI模块
+│   │   │   ├── algorithm_specialist.py        # 算法专家 - 算法相关专业处理
+│   │   │   ├── data_specialist.py             # 数据专家 - 数据相关专业处理
+│   │   │   ├── lottery_specialist.py          # 彩票专家 - 彩票领域专业处理
+│   │   │   └── risk_specialist.py             # 风险专家 - 风险评估专业处理
+│   │   ├── bash.py                            # Bash命令执行相关 - 执行bash命令
 │   │   └── config.py                          # LLM配置文件 - 大语言模型配置
 │   │
 │   ├── 4.9 模型模块 (model/)
@@ -129,12 +199,13 @@ G:\wanhong\cp\--AI-/
 │   │   └── style_utils.py                     # 样式工具函数 - UI样式相关工具函数
 │   │
 │   ├── 4.11 工具模块 (utils/)
+│   │   ├── helpers.py                         # 通用助手函数 - 常用工具函数集合
 │   │   └── logger.py                          # 日志工具 - 系统日志记录功能
 │   │
 │   ├── 4.12 SQL脚本目录 (sql/)
-│   │   └── lottery_analysis_system.sql        # 彩票分析系统数据库脚本 - 数据库表结构定义
+│   │   ├── algorithm_performance.sql           # 算法性能表SQL脚本
+│   │   └── lottery_analysis_system.sql         # 彩票分析系统数据库脚本 - 数据库表结构定义
 │   │
-│   ├── img.png                                # 图片文件
 │   ├── prompt_templates.py                    # 提示模板文件 - AI提示词模板
 │   ├── prompt_templates_max.py                # 最大提示模板文件 - 复杂任务提示词模板
 │   ├── prompt_templates_plas.py               # PLAS提示模板文件 - PLAS系统提示词模板
@@ -157,7 +228,7 @@ G:\wanhong\cp\--AI-/
 项目的核心源代码，按功能模块划分为多个子模块。
 
 #### 4.1 算法模块 (algorithms/)
-包含所有预测和分析算法，分为基础算法和高级算法。
+包含所有预测和分析算法，分为基础算法和高级算法，涵盖多种机器学习、深度学习、强化学习等方法。
 
 #### 4.2 分析模块 (analysis/)
 负责数据分析和性能评估相关功能。
@@ -191,92 +262,3 @@ G:\wanhong\cp\--AI-/
 
 #### 4.12 SQL脚本目录 (sql/)
 数据库脚本文件。
-
-## 系统架构逻辑图
-
-```mermaid
-graph TB
-    A[用户界面层] --> B[应用入口层]
-    B --> C[系统协调器]
-    
-    C --> D[推荐引擎]
-    C --> E[算法运行器]
-    C --> F[评估系统]
-    
-    D --> G[算法工厂]
-    E --> G
-    F --> G
-    
-    G --> H[算法模块]
-    H --> H1[基础算法]
-    H --> H2[高级算法]
-    
-    C --> I[数据库模块]
-    I --> J[DAO层]
-    J --> K[(MySQL数据库)]
-    
-    C --> L[分析模块]
-    L --> M[性能分析器]
-    L --> N[数据导入器]
-    
-    C --> O[大语言模型模块]
-    O --> P[AI客户端]
-    
-    C --> Q[配置模块]
-    Q --> R[系统配置]
-    Q --> S[数据库配置]
-    
-    F --> T[性能记录器]
-    T --> I
-    
-    subgraph 用户界面层
-        A
-    end
-    
-    subgraph 核心业务层
-        C
-        D
-        E
-        F
-    end
-    
-    subgraph 算法与模型层
-        G
-        H
-    end
-    
-    subgraph 数据持久化层
-        I
-        J
-        K
-    end
-    
-    subgraph 辅助功能层
-        L
-        O
-        Q
-    end
-```
-
-## 数据流向说明
-
-1. **用户交互流程**：
-   - 用户通过页面层(pages/)与系统交互
-   - 页面调用应用入口(app.py/main.py)启动业务流程
-   - 系统协调器(engine/system_orchestrator.py)统筹调度各项任务
-
-2. **核心算法流程**：
-   - 算法工厂(algorithm_factory.py)创建所需算法实例
-   - 算法运行器(algorithm_runner.py)执行具体算法
-   - 推荐引擎(recommendation_engine.py)整合算法输出生成推荐
-   - 评估系统(evaluation_system.py)对推荐结果进行评估
-
-3. **数据处理流程**：
-   - 数据库模块(database/)通过DAO层访问MySQL数据库
-   - 分析模块(analysis/)进行数据分析和性能评估
-   - 配置模块(config/)管理系统和数据库配置
-
-4. **智能增强流程**：
-   - 大语言模型模块(llm/)提供AI能力支持
-   - 实时反馈学习器(real_time_feedback_learner.py)根据新数据优化模型
-   - 性能记录器(performance_logger.py)记录并追踪算法性能变化
