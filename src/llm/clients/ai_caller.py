@@ -1,7 +1,8 @@
 # ai_caller.py
 from openai import OpenAI
 # 修复：绝对路径导入 (src/ 根目录)
-from src.prompt_templates import build_final_mandate_prompt  # 用你的新函数；如果有build_lotto_pro_prompt，替换
+# from src.prompt_templates import b  # 用你的新函数；如果有build_lotto_pro_prompt，替换
+from src.llm.clients.openai_compatible import OpenAICompatibleClient
 from src.database.database_manager import DatabaseManager  # 绝对路径，兼容
 from typing import List, Dict
 import re
@@ -117,7 +118,7 @@ try:
     print(f"预测期号: {next_issue}")
 
     # 构建提示词 (修复：用新函数 + 参数匹配你的修改逻辑)
-    PROMPT_TEMPLATE_CONTENT, next_issue_result = build_final_mandate_prompt(
+    PROMPT_TEMPLATE_CONTENT, next_issue_result = OpenAICompatibleClient(
         recent_draws=recent_draws,
         model_outputs={},  # fallback空 (从ensemble)
         performance_log={},  # fallback

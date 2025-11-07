@@ -13,6 +13,38 @@ BACK_AREA_NUMBERS = list(range(1, 13))
 
 
 # --- 核心函数：验证逻辑已修复 ---
+def optimize_recommendations(combo_list):
+    """
+    智能去重 + 压缩组合（避免重复投注）
+    combo_list: [ { front_numbers: [...], back_numbers: [...] }, ... ]
+    """
+    # ---- Step1：数字排序，消除格式差异 ----
+    normalized = []
+    for c in combo_list:
+        fn = sorted(list(set(c['front_numbers'])))
+        bn = sorted(list(set(c['back_numbers'])))
+        normalized.append((tuple(fn), tuple(bn)))
+
+    # ---- Step2：去掉完全重复的组合 ----
+    unique_combos = list(set(normalized))
+
+    # ---- Step3：去掉“被完全包含”的组合（减少浪费）----
+    final_combos = []
+    for a in unique_combos:
+        a_fn, a_bn = set(a[0]), set(a[1])
+        covered = False
+        for b in unique_combos:
+            if a == b: continue
+            b_fn, b_bn = set(b[0]), set(b[1])
+            if a_fn.issubset(b_fn) and a_bn.issubset(b_bn):
+                covered = True
+                break
+        if not covered:
+            final_combos.append(a)
+
+    # ---- 返回优化结果 ----
+    return [{"front": list(a[0]), "back": list(a[1])} for a in final_combos]
+
 def calculate_and_validate_bet(bet_type, front_nums, back_nums):
     """验证投注并计算注数，已修复单式验证逻辑"""
     try:

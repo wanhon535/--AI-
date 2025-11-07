@@ -178,6 +178,47 @@ class DatabaseManager:
             if conn: conn.close()
         return result_id
 
+    def delete_recommendations_by_period_and_model_base(self, period_number: str, model_base_name: str) -> int:
+        """
+        [CRITICAL ADDITION FOR ATOMICITY]
+        Deletes all recommendation records for a given period that match a model's base name.
+        Uses LIKE to catch all stages (e.g., 'qwen-max_Strategy_A', 'qwen-max_Strategy_B', etc.).
+        Returns the number of deleted rows.
+        """
+        # The '%' is a wildcard character for the LIKE operator
+        model_pattern = f"{model_base_name}%"
+        query = "DELETE FROM algorithm_recommendation WHERE period_number = %s AND models LIKE %s"
+
+        # We use execute_update as it handles write operations and returns affected rows
+        deleted_rows = self.execute_update(query, (period_number, model_pattern))
+        return deleted_rows if deleted_rows is not None else 0
+
+    def get_recommendation_by_period_and_model(self, period_number: str, model_identifier: str) -> Optional[
+        Dict[str, Any]]:
+        """
+        [NEW & SAFE] Specifically queries for a recommendation record based on the
+        period and the unique model identifier (e.g., 'qwen-max_Strategy_A').
+        """
+        query = "SELECT * FROM algorithm_recommendation WHERE period_number = %s AND models = %s LIMIT 1"
+        return self.fetch_one(query, (period_number, model_identifier))
+
+    def delete_recommendations_by_period_and_model_base(self, period_number: str, model_base_name: str) -> int:
+        """
+        [NEW & SAFE] Deletes all recommendation records for a given period that match
+        a model's base name (e.g., 'qwen-max'). This is for cleaning up partial runs.
+        """
+        model_pattern = f"{model_base_name}%"
+        query = "DELETE FROM algorithm_recommendation WHERE period_number = %s AND models LIKE %s"
+        deleted_rows = self.execute_update(query, (period_number, model_pattern))
+
+        # Your execute_update returns the count, which is perfect.
+        # Log the action for clarity.
+        if deleted_rows and deleted_rows > 0:
+            logging.info(
+                f"Cleaned up {deleted_rows} stale records for model '{model_base_name}' in period {period_number}.")
+
+        return deleted_rows if deleted_rows is not None else 0
+
     def execute_insert(self, table_name: str, data: Dict[str, Any]) -> Optional[int]:
         """通用的插入方法，根据字典动态生成SQL语句。"""
         columns = ', '.join(f"`{k}`" for k in data.keys())
@@ -326,6 +367,53 @@ class DatabaseManager:
         affected_rows = self.execute_update(query, params)
         return affected_rows is not None and affected_rows > 0
 
+    def insert_algorithm_prediction_log_batch(self, logs: List[Dict[str, Any]]) -> bool:
+        """
+        [NEW & SAFE] Specifically for logging individual algorithm predictions.
+        Performs a batch insert into the algorithm_prediction_logs table.
+        """
+        if not logs:
+            return True  # Nothing to insert, so it's a success.
+
+        query = """
+            INSERT INTO algorithm_prediction_logs 
+            (period_number, algorithm_version, predictions, confidence_score, created_at) 
+            VALUES (%s, %s, %s, %s, %s)
+        """
+
+        params_list = []
+        for log_entry in logs:
+            params_list.append((
+                log_entry.get('period_number'),
+                log_entry.get('algorithm_version'),
+                # Ensure predictions are stored as a JSON string
+                json.dumps(log_entry.get('predictions'), ensure_ascii=False),
+                log_entry.get('confidence_score'),
+                datetime.now()  # Use current time for creation
+            ))
+
+        return self.execute_batch_insert(query, params_list)
+
+    def upsert_algorithm_performance_record(self, record_data: Dict[str, Any]) -> bool:
+        """
+        [NEW & SAFE] Inserts a new performance record. If a record for the same
+        period_number and algorithm_version already exists, it updates it.
+        This is the correct way to handle per-period performance logging.
+        """
+        # The base of the INSERT statement
+        columns = ', '.join(f"`{k}`" for k in record_data.keys())
+        placeholders = ', '.join(['%s'] * len(record_data))
+        sql = f"INSERT INTO algorithm_performance ({columns}) VALUES ({placeholders})"
+
+        # The ON DUPLICATE KEY UPDATE part
+        # This requires a UNIQUE key on (period_number, algorithm_version) in your table.
+        update_placeholders = ', '.join(
+            [f"`{k}`=VALUES(`{k}`)" for k in record_data.keys() if k not in ['period_number', 'algorithm_version']])
+        sql += f" ON DUPLICATE KEY UPDATE {update_placeholders}, `updated_at`=NOW()"
+
+        # execute_update will return the number of affected rows
+        affected_rows = self.execute_update(sql, tuple(record_data.values()))
+        return affected_rows is not None and affected_rows > 0
     # RecommendationDetails 相关方法
     def insert_recommendation_details_batch(self, root_id: int, details_list: List[Dict[str, Any]]) -> bool:
         if not details_list:

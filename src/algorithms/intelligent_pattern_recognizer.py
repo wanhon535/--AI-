@@ -7,6 +7,8 @@ import logging
 from collections import Counter
 import pandas as pd
 
+from src.utils.log_predictor import log_prediction
+
 
 class IntelligentPatternRecognizer(BaseAlgorithm):
     """智能模式识别器 - 识别历史数据中的复杂模式"""
@@ -42,6 +44,7 @@ class IntelligentPatternRecognizer(BaseAlgorithm):
             logging.error(f"模式识别器训练失败: {e}")
             return False
 
+    @log_prediction
     def predict(self, history_data: List[LotteryHistory]) -> Dict[str, Any]:
         """基于模式识别进行预测"""
         if not self.is_trained:

@@ -41,34 +41,64 @@ class DynamicEnsembleOptimizer(BaseAlgorithm):
             return False
 
     def predict(self, history_data: List[LotteryHistory]) -> Dict[str, Any]:
-        """基于集成优化进行预测"""
+        """
+        [UPGRADED for Transparency] Performs integrated prediction and returns both
+        the final ensembled result AND the individual predictions of all sub-algorithms.
+        """
         if not self.is_trained:
             return {'error': '模型未训练'}
 
         try:
-            # 获取所有算法的预测结果
-            all_predictions = self._collect_all_predictions(history_data)
+            all_predictions = {}
+            individual_predictions_log = []  # This will hold the data for the log table
 
-            # 动态集成优化
-            ensemble_result = self._dynamic_ensemble(all_predictions)
+            # Determine the next period number for logging purposes
+            next_period = "UNKNOWN"
+            if history_data:
+                try:
+                    next_period = str(int(history_data[-1].period_number) + 1)
+                except (ValueError, IndexError):
+                    pass  # Keep 'UNKNOWN' if period number is weird
 
-            # 计算集成置信度
+            # Get predictions from all sub-algorithms
+            for algo_name, algorithm in self.algorithms.items():
+                try:
+                    prediction = algorithm.predict(history_data)
+                    if 'error' not in prediction:
+                        all_predictions[algo_name] = prediction
+
+                        # --- THIS IS THE CRITICAL NEW LOGIC ---
+                        # Create a structured log entry for this sub-algorithm's output
+                        log_entry = {
+                            "period_number": next_period,
+                            "algorithm_version": f"{algo_name}_{algorithm.version}",
+                            "predictions": prediction,  # The entire raw prediction from the sub-algorithm
+                            "confidence_score": prediction.get('recommendations', [{}])[0].get('confidence', 0.5)
+                        }
+                        individual_predictions_log.append(log_entry)
+                        # ----------------------------------------
+                except Exception as e:
+                    logging.error(f"Sub-algorithm {algo_name} failed during predict: {e}")
+
+            # The original ensembling logic remains unchanged
+            ensembled_result = self._dynamic_ensemble(all_predictions)
             confidence = self._calculate_ensemble_confidence(all_predictions)
 
+            # --- THE RETURN VALUE IS NOW A RICHER DICTIONARY ---
             return {
-                'algorithm': self.name,
-                'version': self.version,
-                'recommendations': [{
-                    'front_number_scores': ensemble_result['front'],
-                    'back_number_scores': ensemble_result['back'],
-                    'confidence': confidence,
-                    'ensemble_method': 'dynamic_weighted_average'
-                }],
-                'analysis': {
-                    'ensemble_info': self._get_ensemble_info(all_predictions),
-                    'algorithm_performance': self.performance_history,
-                    'weight_distribution': self.algorithm_weights
-                }
+                # This is the final, combined result for Stage A
+                "ensembled_result": {
+                    'algorithm': self.name,
+                    'version': self.version,
+                    'recommendations': [{
+                        'front_number_scores': ensembled_result['front'],
+                        'back_number_scores': ensembled_result['back'],
+                        'confidence': confidence
+                    }],
+                    'analysis': {'ensemble_info': self._get_ensemble_info(all_predictions)}
+                },
+                # This is the detailed breakdown for the log table
+                "individual_predictions": individual_predictions_log
             }
 
         except Exception as e:

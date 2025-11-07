@@ -7,6 +7,8 @@ from typing import List, Dict, Any, Tuple
 import logging
 from collections import defaultdict
 
+from src.utils.log_predictor import log_prediction
+
 
 class NumberGraphAnalyzer(BaseAlgorithm):
     """号码图分析器 - 基于图论分析号码关联关系"""
@@ -42,7 +44,7 @@ class NumberGraphAnalyzer(BaseAlgorithm):
         except Exception as e:
             logging.error(f"号码图分析器训练失败: {e}")
             return False
-
+    @log_prediction
     def predict(self, history_data: List[LotteryHistory]) -> Dict[str, Any]:
         """基于图分析进行预测"""
         if not self.is_trained:

@@ -3,6 +3,7 @@
 # ====================================================================================================
 from src.algorithms.base_algorithm import BaseAlgorithm
 from src.model.lottery_models import LotteryHistory
+from src.utils.log_predictor import log_prediction
 from collections import Counter
 from typing import List, Dict, Any
 
@@ -33,6 +34,7 @@ class BayesianNumberPredictor(BaseAlgorithm):
         self.is_trained = True
         return True
 
+    @log_prediction
     def predict(self, history_data: List[LotteryHistory]) -> Dict[str, Any]:
         """核心改造: 不再随机选择，而是返回所有号码的后验概率作为分数"""
         if not self.is_trained:

@@ -2,6 +2,7 @@ from src.algorithms.base_algorithm import BaseAlgorithm
 from typing import List, Dict, Any
 from src.model.lottery_models import LotteryHistory
 from collections import Counter
+from src.utils.log_predictor import log_prediction
 import numpy as np
 
 class FrequencyAnalysisAlgorithm(BaseAlgorithm):
@@ -32,6 +33,7 @@ class FrequencyAnalysisAlgorithm(BaseAlgorithm):
         scores = [{'number': number, 'score': round(counter.get(number, 0) / max_count, 4)} for number in range(number_range[0], number_range[1] + 1)]
         return sorted(scores, key=lambda x: x['score'], reverse=True)
 
+    @log_prediction
     def predict(self, history_data: List[LotteryHistory]) -> Dict[str, Any]:
         if not self.is_trained: return {'error': '模型未训练'}
         front_scores = self._normalize_scores(self.frequency_data['front_frequency'], self.parameters['front_area_range'])
@@ -79,6 +81,7 @@ class HotColdNumberAlgorithm(BaseAlgorithm):
             combined_scores.append({'number': num, 'score': round(final_score, 4)})
         return sorted(combined_scores, key=lambda x: x['score'], reverse=True)
 
+    @log_prediction
     def predict(self, history_data: List[LotteryHistory]) -> Dict[str, Any]:
         if not self.is_trained: return {'error': '模型未训练'}
         front_scores = self._calculate_combined_scores(self.analysis_data['front_hot'], self.analysis_data['front_cold'], (1, 35))
@@ -117,7 +120,7 @@ class OmissionValueAlgorithm(BaseAlgorithm):
         max_omission = max(omission_dict.values()) if omission_dict else 1.0
         scores = [{'number': number, 'score': round(omission / max_omission, 4)} for number, omission in omission_dict.items()]
         return sorted(scores, key=lambda x: x['score'], reverse=True)
-
+    @log_prediction
     def predict(self, history_data: List[LotteryHistory]) -> Dict[str, Any]:
         if not self.is_trained: return {'error': '模型未训练'}
         front_scores = self._normalize_omission(self.omission_data['front_omission'])

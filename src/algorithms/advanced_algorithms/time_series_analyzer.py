@@ -6,6 +6,8 @@ from src.model.lottery_models import LotteryHistory
 from typing import List, Dict, Any
 import logging
 
+from src.utils.log_predictor import log_prediction
+
 
 class TimeSeriesAnalyzer(BaseAlgorithm):
     """多时间尺度时序分析器 - 修复版"""
@@ -44,7 +46,7 @@ class TimeSeriesAnalyzer(BaseAlgorithm):
         except Exception as e:
             logging.error(f"时序分析器训练失败: {e}")
             return False
-
+    @log_prediction
     def predict(self, history_data: List[LotteryHistory]) -> Dict[str, Any]:
         """基于时序分析进行预测"""
         if not self.is_trained:

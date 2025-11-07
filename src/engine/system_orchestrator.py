@@ -4,6 +4,7 @@ import json
 from collections import Counter, defaultdict
 from typing import List, Dict
 
+from run_backtest_simulation import test_backtracking
 from src.database.database_manager import DatabaseManager
 from src.engine.recommendation_engine import RecommendationEngine
 from src.algorithms.dynamic_ensemble_optimizer import DynamicEnsembleOptimizer
@@ -15,13 +16,13 @@ class SystemOrchestrator:
 
     def __init__(self, db_manager: DatabaseManager):
         self.db = db_manager
-        # self.engine = self._initialize_engine() # Engine 在需要时再初始化
+        self.engine = self._initialize_engine() # Engine 在需要时再初始化
 
     def _initialize_engine(self):
         """初始化一个用于回填和分析的推荐引擎实例。"""
         # --- 核心修改：确保导入路径正确 ---
         # 确认这个导入没有红色波浪线
-        from src.engine.algorithm_factory import AlgorithmFactory
+        from src.engine.algorithm_factory import
         base_algorithms = AlgorithmFactory.get_active_algorithms(self.db)
         chief_strategy_officer = DynamicEnsembleOptimizer(base_algorithms)
         engine = RecommendationEngine()
@@ -75,6 +76,36 @@ class SystemOrchestrator:
             print(f"  - ✅ 成功回填期号 {issue_str} 的分析数据。")
 
     # --- 这是您需要的完整函数 ---
+    def daily_cycle_with_backtracking(self):
+        """包含回溯的日常运行周期"""
+        print("开始包含回溯的日常运行周期...")
+
+        # 1. 数据更新
+        self.update_lottery_data()
+
+        # 2. 运行回溯分析（最近50期）
+        print("执行日常回溯分析...")
+        backtrack_results = self.backtracking_engine.run_algorithm_backtracking(50)
+
+        if backtrack_results.get('status') == 'success':
+            summary = backtrack_results['summary_metrics']
+            print(
+                f"回溯分析完成: 胜率 {summary['win_rate']:.2%}, 平均得分 {summary['avg_hit_score_per_recommendation']}")
+        else:
+            print(f"回溯分析失败: {backtrack_results.get('message')}")
+
+        # 3. 生成新推荐
+        new_recommendations = self.generate_recommendations()
+
+        return {
+            'backtracking_results': backtrack_results,
+            'new_recommendations': new_recommendations
+        }
+
+    def run_comprehensive_backtracking(self):
+        """运行全面回溯分析"""
+        controller = BacktrackingController()
+        return controller.run_full_backtracking()
     def populate_number_statistics(self):
         """
         从 lottery_history 计算并填充 number_statistics 表的完整方法。

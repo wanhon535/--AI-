@@ -1,4 +1,4 @@
-# file: pages/Backtest_Analysis.py (完整版，已修复中文显示)
+# pages/Backtest_Analysis.py
 import streamlit as st
 import pandas as pd
 import json
@@ -7,24 +7,57 @@ from src.ui.style_utils import load_global_styles
 
 
 @st.cache_data(ttl=600)
-def load_backtest_data(_db_manager):
-    """一次性加载所有需要的回测数据"""
-    # ❗️注意: 'algorithm_prediction_logs' 表在您的数据库文档中不存在。
-    # 此处假设该表存在。如果不存在，此页面将无法加载数据。
-    try:
-        periods_raw = _db_manager.execute_query(
-            "SELECT DISTINCT period_number FROM algorithm_prediction_logs ORDER BY period_number DESC")
-        periods = [p['period_number'] for p in periods_raw] if periods_raw else []
+def load_all_periods(_db_manager):
+    """
+    使用 algorithm_recommendation 表作为期号来源
+    """
+    raw = _db_manager.execute_query(
+        "SELECT DISTINCT period_number FROM algorithm_recommendation ORDER BY period_number DESC"
+    )
+    return [row["period_number"] for row in raw] if raw else []
 
-        performance_raw = _db_manager.execute_query("SELECT * FROM algorithm_performance")
-        performance_df = pd.DataFrame(performance_raw) if performance_raw else pd.DataFrame()
 
-        return periods, performance_df
-    except Exception as e:
-        # 如果表不存在，数据库会抛出异常，我们在这里捕获它
-        st.error(f"加载回测数据时出错: {e}")
-        st.warning("这通常是因为 'algorithm_prediction_logs' 表不存在。请检查您的数据库结构或运行必要的回测脚本。")
-        return [], pd.DataFrame()
+@st.cache_data(ttl=300)
+def load_recommendations_and_details(_db_manager, period_number):
+    """
+    核心：一次性加载该期的 algorithm_recommendation 和 recommendation_details 到内存
+    返回：
+      - algo_recs: list of recommendation meta dicts
+      - details_map: dict mapping recommendation_metadata_id -> list of detail dicts
+    """
+    # 1) 加载元数据
+    algo_recs = _db_manager.execute_query(
+        """
+        SELECT * FROM algorithm_recommendation
+        WHERE period_number = %s
+        ORDER BY algorithm_version ASC, created_at ASC
+        """,
+        (period_number,)
+    ) or []
+
+    if not algo_recs:
+        return [], {}
+
+    # 收集所有元数据 id
+    meta_ids = [meta["id"] for meta in algo_recs]
+
+    # 2) 批量查询 recommendation_details（使用 IN 子句）
+    # 防止 meta_ids 为空（已经检查过非空）
+    placeholders = ",".join(["%s"] * len(meta_ids))
+    sql = f"""
+        SELECT * FROM recommendation_details
+        WHERE recommendation_metadata_id IN ({placeholders})
+        ORDER BY win_probability DESC, id ASC
+    """
+    details_raw = _db_manager.execute_query(sql, tuple(meta_ids)) or []
+
+    # 3) 构建 mapping：metadata_id -> [detail,...]
+    details_map = {}
+    for d in details_raw:
+        k = d["recommendation_metadata_id"]
+        details_map.setdefault(k, []).append(d)
+
+    return algo_recs, details_map
 
 
 @authenticated_page
@@ -35,87 +68,146 @@ def backtest_analysis_page():
 
     st.markdown("""
     <div class="card">
-        <h1>🔬 历史回测分析</h1>
-        <p style="color: #7f8c8d;">深入分析和验证每个算法在任意历史期数的具体表现</p>
+        <h1>🔬 历史推荐回测分析（链表预取版）</h1>
+        <p style="color: #7f8c8d;">先链表查询入内存，再做对比与渲染 — 避免空数据与异步问题</p>
     </div>
     """, unsafe_allow_html=True)
 
-    with st.spinner("正在加载回测数据..."):
-        available_periods, performance_df = load_backtest_data(db_manager)
+    # 加载所有可用期号
+    with st.spinner("正在加载可分析的期号..."):
+        periods = load_all_periods(db_manager)
 
-    # 如果没有期数数据，可能是因为表不存在或为空
-    if not available_periods:
-        st.info("系统中当前没有可供分析的回测数据。")
+    if not periods:
+        st.warning("当前系统没有任何算法推荐数据，无法进行回测分析。")
         st.stop()
 
-    # --- 核心功能 1: 算法长期性能总览 ---
-    st.markdown("### 📈 算法长期性能总览")
-    if not performance_df.empty:
-        df_display = performance_df.copy()
-        df_display['算法名称'] = df_display['algorithm_version'].apply(lambda x: ALGO_NAME_MAP.get(x, x))
+    # 选择期号
+    st.markdown("### 🎯 请选择分析期号")
+    selected_period = st.selectbox("选择期号", options=periods)
 
-        format_dict = {'avg_front_hit_rate': '{:.2%}', 'avg_back_hit_rate': '{:.2%}', 'current_weight': '{:.3f}'}
-        display_cols = {
-            '算法名称': '算法名称', 'total_periods_analyzed': '分析期数', 'avg_front_hit_rate': '前区平均命中',
-            'avg_back_hit_rate': '后区平均命中', 'current_weight': '当前权重', 'performance_trend': '性能趋势'
-        }
+    if not selected_period:
+        st.stop()
 
-        # 筛选出实际存在的列进行显示
-        cols_to_show = [col for col in display_cols.keys() if col in df_display.columns]
-        df_to_show = df_display[cols_to_show]
-        df_to_show = df_to_show.rename(columns=display_cols)
+    # 先查询并缓存该期的推荐元数据与详情（一次性）
+    with st.spinner("正在一次性加载该期的推荐元数据与所有组合..."):
+        algo_recs, details_map = load_recommendations_and_details(db_manager, selected_period)
 
-        st.dataframe(df_to_show.style.format(format_dict), use_container_width=True, hide_index=True)
-    else:
-        st.warning("`algorithm_performance` 表为空，无法显示长期性能。")
+    if not algo_recs:
+        st.warning(f"期号 {selected_period} 没有任何算法推荐数据。")
+        st.stop()
 
-    # --- 核心功能 2: 单期预测结果追溯 ---
-    st.markdown("### 🎯 单期预测结果追溯")
-    selected_period = st.selectbox("请选择要分析的历史期号:", options=available_periods)
+    # 查询开奖号码（单条）
+    actual_draw_raw = db_manager.execute_query(
+        "SELECT * FROM lottery_history WHERE period_number = %s",
+        (selected_period,)
+    )
 
-    if selected_period:
-        actual_draw_raw = db_manager.execute_query("SELECT * FROM lottery_history WHERE period_number = %s",
-                                                   (selected_period,))
-        prediction_logs = db_manager.execute_query("SELECT * FROM algorithm_prediction_logs WHERE period_number = %s",
-                                                   (selected_period,))
+    if not actual_draw_raw:
+        st.error(f"期号 {selected_period} 的开奖数据不存在，请先补全历史开奖记录。")
+        st.stop()
 
-        if not actual_draw_raw:
-            st.error(f"找不到第 {selected_period} 期的开奖数据。")
-        elif not prediction_logs:
-            st.warning(f"在第 {selected_period} 期没有找到任何算法的预测记录。")
-        else:
-            actual_draw = actual_draw_raw[0]
-            actual_front = {actual_draw[f'front_area_{i + 1}'] for i in range(5)}
-            actual_back = {actual_draw[f'back_area_{i + 1}'] for i in range(2)}
+    actual_draw = actual_draw_raw[0]
+    try:
+        actual_front = {actual_draw[f"front_area_{i + 1}"] for i in range(5)}
+        actual_back = {actual_draw[f"back_area_{i + 1}"] for i in range(2)}
+    except KeyError:
+        st.error("lottery_history 表字段不完整，请确认字段名为 front_area_1..5, back_area_1..2")
+        st.stop()
 
-            st.metric("当期开奖号码",
-                      f"🔴 {' '.join(map(str, sorted(list(actual_front))))}   🔵 {' '.join(map(str, sorted(list(actual_back))))}")
-            st.write("---")
+    st.markdown("### ✅ 当期开奖号码")
+    st.metric(
+        "开奖号码",
+        f"🔴 {' '.join(map(str, sorted(list(actual_front))))}    🔵 {' '.join(map(str, sorted(list(actual_back))))}"
+    )
+    st.write("---")
 
-            for log in prediction_logs:
-                algo_version = log['algorithm_version']
-                display_name = ALGO_NAME_MAP.get(algo_version, algo_version)
-                try:
-                    predictions = json.loads(log['predictions'])
-                    # 适应可能不存在 'recommendations' 键的情况
-                    primary_rec = predictions.get('recommendations', [{}])[0] if predictions.get(
-                        'recommendations') else {}
-                    pred_front = primary_rec.get('front_numbers', [])
-                    pred_back = primary_rec.get('back_numbers', [])
-                    front_hits = len(set(pred_front) & actual_front)
-                    back_hits = len(set(pred_back) & actual_back)
+    # 渲染所有算法（使用内存中的数据进行对比）
+    st.markdown("### 🤖 算法推荐命中情况（基于内存中的链表数据）")
 
-                    with st.expander(f"**{display_name}** | 命中: 🔴 {front_hits}/5 + 🔵 {back_hits}/2"):
-                        def highlight_numbers(predicted, actual):
-                            return [f"**<font color='green'>{n}</font>**" if n in actual else str(n) for n in predicted]
+    for meta in algo_recs:
+        algo_version = meta.get("algorithm_version", "unknown")
+        display_name = ALGO_NAME_MAP.get(algo_version, algo_version)
+        meta_id = meta.get("id")
 
-                        front_display = ", ".join(highlight_numbers(pred_front, actual_front))
-                        back_display = ", ".join(highlight_numbers(pred_back, actual_back))
-                        st.markdown(f"**预测:** {front_display} + {back_display}", unsafe_allow_html=True)
-                        with st.popover("查看原始数据"):
-                            st.json(predictions)
-                except Exception as e:
-                    st.error(f"解析【{display_name}】的预测数据时出错: {e}")
+        # header 卡片
+        st.markdown(f"""
+        <div class="card">
+            <h3>🧠 {display_name}（版本：{algo_version}）</h3>
+            <p>置信度：<b>{meta.get("confidence_score", "N/A")}</b> | 风险等级：<b>{meta.get("risk_level", "N/A")}</b></p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # 从 details_map 里取出所有组合（已预取）
+        details = details_map.get(meta_id, [])
+
+        if not details:
+            st.info("该算法没有推荐任何组合（或 recommendation_details 中没有对应记录）。")
+            continue
+
+        # 遍历并渲染每个组合
+        for d in details:
+            # 解析号码（兼容字符串或 json 存储形式）
+            front_raw = d.get("front_numbers") or ""
+            back_raw = d.get("back_numbers") or ""
+
+            # 支持 "1,2,3,4,5" 或 JSON 列表 '["1","2",...]'
+            def parse_number_field(val):
+                if isinstance(val, (list, tuple)):
+                    return [int(x) for x in val]
+                if not isinstance(val, str):
+                    return []
+                v = val.strip()
+                if v.startswith("[") and v.endswith("]"):
+                    try:
+                        arr = json.loads(v)
+                        return [int(x) for x in arr]
+                    except Exception:
+                        pass
+                # 最后按逗号分割
+                return [int(x) for x in v.split(",") if x.strip().isdigit()]
+
+            try:
+                front_nums = parse_number_field(front_raw)
+                back_nums = parse_number_field(back_raw)
+            except Exception:
+                front_nums = []
+                back_nums = []
+
+            hit_front = len(set(front_nums) & actual_front) if front_nums else 0
+            hit_back = len(set(back_nums) & actual_back) if back_nums else 0
+
+            title = (
+                f"组合：🔴 {front_nums} + 🔵 {back_nums} "
+                f"| 命中：{hit_front}/5 + {hit_back}/2"
+            )
+
+            with st.expander(title):
+                # 高亮命中号码
+                def fmt(nums, actual_set):
+                    return ", ".join(
+                        f"**🟩 {n}**" if n in actual_set else str(n)
+                        for n in nums
+                    )
+
+                st.markdown(f"**前区：** {fmt(front_nums, actual_front)}  \n**后区：** {fmt(back_nums, actual_back)}",
+                            unsafe_allow_html=True)
+
+                # 显示细节字段（安全地取）
+                st.write("推荐类型：", d.get("recommend_type", "N/A"))
+                st.write("策略逻辑：", d.get("strategy_logic", ""))
+                st.write("预计中奖概率：", d.get("win_probability", "N/A"))
+
+                # 若你希望看到 meta 的分析依据，也可以在此处展示
+                if meta.get("analysis_basis"):
+                    with st.expander("查看该算法元数据（analysis_basis）"):
+                        st.json(meta.get("analysis_basis"))
+
+                # 原始数据
+                with st.popover("查看原始组合记录"):
+                    st.json(d)
+
+    st.success("已完成基于内存链表的对比与渲染。")
 
 
+# 运行页面
 backtest_analysis_page()

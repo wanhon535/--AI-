@@ -2,6 +2,7 @@
 import numpy as np
 from src.algorithms.base_algorithm import BaseAlgorithm
 from src.model.lottery_models import LotteryHistory
+from src.utils.log_predictor import log_prediction
 from typing import List, Dict, Any
 import logging
 
@@ -42,7 +43,7 @@ class MarkovTransitionModel(BaseAlgorithm):
         except Exception as e:
             logging.error(f"马尔可夫模型训练失败: {e}")
             return False
-
+    @log_prediction
     def predict(self, history_data: List[LotteryHistory]) -> Dict[str, Any]:
         """基于马尔可夫转移概率进行预测"""
         if not self.is_trained:
